@@ -13,7 +13,7 @@ static void	addClient(int client_socket, std::vector<pollfd> pollFds)
 	client_pollfd.fd = client_socket;
 	client_pollfd.events = POLLIN;
 	pollFds.push_back(client_pollfd);
-	// print ?
+	std::cout << "ADD CLIENT SUCCESSED" << std::endl;
 }
 
 static void	tooManyClients(int client_socket)
@@ -62,6 +62,7 @@ int		Server::manageServerLoop()
 	pollFds.push_back(serverPollFd);
 	while (1)
 	{
+		printf("come\n");
 		if (poll((pollfd *)&pollFds[0], (unsigned int)pollFds.size(), -1) <= SUCCESS) // -1 == no timeout
 		{
 			std::cerr << "poll error\n";
@@ -69,10 +70,12 @@ int		Server::manageServerLoop()
 		}
 		std::vector<pollfd>::iterator	it;
 		std::vector<pollfd>::iterator	end = pollFds.end();
+		printf("why?\n");
 		for (it = pollFds.begin(); it != end; it++)
 		{
 			if (it->revents & POLLIN)
 			{
+				printf("here1\n");
 				if (it->fd == _serverSocketFd)
 				{
 					int	clientSock = acceptSocket(_serverSocketFd);
@@ -102,6 +105,7 @@ int		Server::manageServerLoop()
 			}
 			else if (it->revents & POLLERR)
 			{
+				printf("here2\n");
 				if (it->fd == _serverSocketFd)
 				{
 					std::cerr << "Lister socket error\n";
