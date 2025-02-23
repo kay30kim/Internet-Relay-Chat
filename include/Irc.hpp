@@ -9,8 +9,19 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
+#include <map>
 #include <poll.h>
 #include <unistd.h>
+
 #include "Macro.hpp"
+#include "Colors.hpp"
 // #include "Server.hpp"
+
+struct cmd_struct
+{
+	std::string	prefix;
+	std::string	name;
+	std::string	message;
+};
+
 #endif
