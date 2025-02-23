@@ -35,7 +35,7 @@ static sockaddr_in	getClientAddress(int socket)
 	return (client);
 }
 
-static void	printRecv(std::string type, int client_socket, char *message)
+static void	print(std::string type, int client_socket, const char *message)
 {
 	sockaddr_in client = getClientAddress(client_socket);
 	std::cout << type \
@@ -48,6 +48,7 @@ static void	printRecv(std::string type, int client_socket, char *message)
 static void	delClient(std::vector<pollfd> pollFds, std::vector<pollfd>::iterator it)
 {
 	pollFds.erase(it);
+	print("Deconnection : ", it->fd, static_cast<const char*>("\n"));
 	close(it->fd);
 	std::cout << "Client deleted \nTotal Client is now: " << (unsigned int)(pollFds.size() - 1) << std::endl;
 }
@@ -62,7 +63,6 @@ int		Server::manageServerLoop()
 	pollFds.push_back(serverPollFd);
 	while (1)
 	{
-		printf("come\n");
 		if (poll((pollfd *)&pollFds[0], (unsigned int)pollFds.size(), -1) <= SUCCESS) // -1 == no timeout
 		{
 			std::cerr << "poll error\n";
@@ -70,12 +70,10 @@ int		Server::manageServerLoop()
 		}
 		std::vector<pollfd>::iterator	it;
 		std::vector<pollfd>::iterator	end = pollFds.end();
-		printf("why?\n");
 		for (it = pollFds.begin(); it != end; it++)
 		{
 			if (it->revents & POLLIN)
 			{
-				printf("here1\n");
 				if (it->fd == _serverSocketFd)
 				{
 					int	clientSock = acceptSocket(_serverSocketFd);
@@ -97,15 +95,14 @@ int		Server::manageServerLoop()
 						delClient(pollFds, it);
 					else
 					{
-						printRecv("Recv : ", it->fd, message);
+						print("Recv : ", it->fd, message);
 						send(it->fd, message, strlen(message) + 1, 0);
-						printRecv("Send : ", it->fd, message);
+						print("Send : ", it->fd, message);
 					}
 				}
 			}
 			else if (it->revents & POLLERR)
 			{
-				printf("here2\n");
 				if (it->fd == _serverSocketFd)
 				{
 					std::cerr << "Lister socket error\n";

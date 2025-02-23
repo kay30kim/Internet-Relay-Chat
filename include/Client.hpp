@@ -6,11 +6,12 @@
 class Client
 {
 	private:
-		// pollfd	_clientPollFd;
+		pollfd	_clientPollFd;
 	public:
 		Client();
-		// Client(pollfd clientPollFd);
+		Client(pollfd clientPollFd);
 		~Client();
+		pollfd getPollFd() const { return _clientPollFd; }
 };
 
 #endif
