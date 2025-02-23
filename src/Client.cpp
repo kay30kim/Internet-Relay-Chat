@@ -3,10 +3,10 @@
 Client::Client()
 {
 	std::cout <<"Client constructor\n";
-	memset(&_clientPollFd, 0, sizeof(_clientPollFd));
+	memset(&_client_poll_fd, 0, sizeof(_client_poll_fd));
 }
 
-Client::Client(pollfd clientPollFd) : _clientPollFd(clientPollFd)
+Client::Client(pollfd client_poll_fd) : _client_poll_fd(client_poll_fd)
 {
 	std::cout << "Client constructor with clientPollFd\n";
 }
