@@ -12,7 +12,6 @@ class Server
 		struct addrinfo				*_servinfo;
 		int							_server_socket_fd;
 		std::map<const int, Client>	_clients;
-		Commands					_cmd;
 		std::string					_mdp = "password";
 	
 	public:
@@ -34,6 +33,14 @@ class Server
 		// Parsing & Commands functions
 		void		parseMessage(const int client_fd, std::string message);
 		void		execCommand(int const client_fd, std::string cmd_line);
+		// Display functions
+		void		printChannel(std::string &channelName);
+		void		printOper(std::string &channelName);
+		// Custom exceptions
+		class InvalidClientException : public std::exception {
+			public :
+					const char *	what (void) const throw();
+		};
 
 };
 

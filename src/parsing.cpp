@@ -1,14 +1,6 @@
-#include "Commands.hpp"
+#include "Irc.hpp"
 
-Commands::Commands(/* args */)
-{
-}
-
-Commands::~Commands()
-{
-}
-
-int	Commands::parseCommand(std::string cmd_line, cmd_struct &cmd_infos)
+int	parseCommand(std::string cmd_line, cmd_struct &cmd_infos)
 {
 	// COMMAND
 	for (std::string::size_type i = 0; i < cmd_line.size(); i++)
