@@ -108,7 +108,44 @@ void	Server::delClient(std::vector<pollfd> &poll_fds, std::vector<pollfd>::itera
 	std::cout << CYAN << "Client deleted \nTotal Client is now: " << (unsigned int)(poll_fds.size() - 1) << RESET << std::endl;
 }
 
-void	Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::vector<std::string> cmds)
+/**
+ * @brief Returns a dynamic Welcome version compliant with the templates below
+ * 		 ":127.0.0.1 001 tmanolis :Welcome tmanolis!tmanolis@127.0.0.1\r\n"
+ * 		FYI, the doc :
+ * 		001    RPL_WELCOME
+ *      "Welcome to the Internet Relay Network
+ *       <nick>!<user>@<host>"
+ */
+std::string getWelcomeReply(std::map<const int, Client>::iterator &it)
+{
+	std::stringstream	rpl_welcome;
+	std::string			host = ":127.0.0.1";
+	std::string			space = " ";
+	std::string			welcome = " :Welcome ";
+	std::string			rpl_code = "001";
+	std::string			user_id = it->second.getNickname() + "!" + it->second.getUsername() + "@" + host;
+	std::string			end = "\r\n";
+	
+	// reset the stringstream
+	rpl_welcome.str(std::string());
+	// write in the stream to append everything in one line and properly terminate it with a NULL operator
+	rpl_welcome << host << space << rpl_code << space << it->second.getNickname() << welcome << user_id << end << '\0';
+	// convert the stream in the required std::string
+	return (rpl_welcome.str());
+}
+
+std::string	cleanStr(std::string str)
+{
+	// Erase the space at the beginning of the str (i.e " marine sanjuan" must be "marine sanjuan")
+	if (str.find(' ') != std::string::npos && str.find(' ') == 0)
+		str.erase(str.find(' '), 1);
+	// Erase any Carriage Returns in the str. Note : the '\n' has already be dealt with in the function SplitMessage
+	if (str.find('\r') != std::string::npos)
+		str.erase(str.find('\r'), 1);
+	return (str);
+}
+
+void Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::vector<std::string> cmds)
 {
 	std::map<const int, Client>::iterator it;
 	
@@ -118,17 +155,19 @@ void	Server::fillClients(std::map<const int, Client> &client_list, int client_fd
 		if (cmds[i].find("NICK") != std::string::npos)
 		{
 			cmds[i].erase(cmds[i].find("NICK"), 4);
+			cmds[i] = cleanStr(cmds[i]);
 			it->second.setNickname(cmds[i]);
 		}
 		else if (cmds[i].find("USER") != std::string::npos)
 		{
 			cmds[i].erase(cmds[i].find("USER "), 5);
 			it->second.setUsername(cmds[i].substr(cmds[i].find(" "), cmds[i].find(" ") + 1));
+			it->second.setUsername(cleanStr(it->second.getUsername()));
 			it->second.setRealname(cmds[i].substr(cmds[i].find(":") + 1, cmds[i].length() - cmds[i].find(":") + 1));
 		}
 	}
 	if (it->second.is_valid() == SUCCESS)
-		send(client_fd, ":127.0.0.1 001 kay :Welcome kay!kay@127.0.0.1\r\n", 62, 0);
+		send(client_fd, getWelcomeReply(it).c_str(), getWelcomeReply(it).size(), 0);
 	// else
 		// TODO 
 }
@@ -167,8 +206,39 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 {
 	std::cout << "cmd line : " << cmd_line << std::endl;
 	
-	int			i = 0;
 	cmd_struct	cmd_infos;
+	int index = 0;
 	
 	_cmd.parseCommand(cmd_line, cmd_infos);
+
+	while (index < VALID_LEN)
+	{
+		if (cmd_infos.name == _cmd.validCmds[index])
+			break;
+		index++;
+	}
+
+	switch (index)
+	{
+	// case 0: _cmd.cap(&cmd_infos); break;
+	// case 1: _cmd.invite(client_fd, &cmd_infos); break;
+	// case 2: _cmd.join(&cmd_infos); break;
+	// case 3: _cmd.kick(&cmd_infos); break;
+	// case 4: _cmd.kill(&cmd_infos); break;
+	// case 5: _cmd.list(&cmd_infos); break;
+	// case 6: _cmd.mdp(&cmd_infos); break;
+	// case 7: _cmd.mode(&cmd_infos); break;
+	// case 8: _cmd.nick(&cmd_infos); break;
+	// case 9: _cmd.part(&cmd_infos); break;
+	// case 10: _cmd.ping(&cmd_infos); break;
+	// case 11: _cmd.pong(&cmd_infos); break;
+	// case 12: _cmd.privmsg(&cmd_infos); break;
+	// case 13: _cmd.topic(&cmd_infos); break;
+	// case 14: _cmd.user(&cmd_infos); break;
+	// case 15: _cmd.who(&cmd_infos); break;
+	// case 16: _cmd.whois(&cmd_infos); break;
+	// case 17: _cmd.whowas(&cmd_infos); break;
+	default:
+		std::cout << PURPLE << "This command is not supported by our services." << RESET << std::endl;
+	}
 }

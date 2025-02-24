@@ -1,11 +1,11 @@
 #include "Server.hpp"
 #include "Colors.hpp"
 
-static int	acceptSocket(int listenSocket)
+static int	acceptSocket(int listen_socket)
 {
 	sockaddr_in	client;
 	socklen_t	addr_size = sizeof(sockaddr_in);
-	return (accept(listenSocket, (sockaddr *)&client, &addr_size));
+	return (accept(listen_socket, (sockaddr *)&client, &addr_size));
 }
 
 static void	tooManyClients(int client_socket)
@@ -53,7 +53,7 @@ int		Server::manageServerLoop()
 
 		if (poll((pollfd *)&poll_fds[0], (unsigned int)poll_fds.size(), -1) <= SUCCESS) // -1 == no timeout
 		{
-			std::cerr << RED << "Poll error" << RESET << std::endl;;
+			std::cerr << RED << "Poll error" << RESET << std::endl;
 			return (FAILURE);
 		}
 
