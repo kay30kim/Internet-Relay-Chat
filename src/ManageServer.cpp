@@ -37,7 +37,7 @@ static void	print(std::string type, int client_socket, char *message)
 			  << BLUE << (message == NULL ? "\n" : message) << RESET << std::endl;
 }
 
-int		Server::manageServerLoop()
+int Server::manageServerLoop(Server *server)
 {
 	std::vector<pollfd>	poll_fds;
 	pollfd				server_poll_fd;

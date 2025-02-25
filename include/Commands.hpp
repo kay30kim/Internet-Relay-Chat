@@ -12,6 +12,7 @@ struct cmd_struct
 	std::string	message;
 };
 
+void	ban(Server server, cmd_struct cmd_infos);
 // int	ping(int const client_fd, cmd_struct &cmd);
 
 #endif

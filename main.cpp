@@ -12,7 +12,7 @@ int main (void)
 
 	try
 	{
-		if (server.manageServerLoop() == FAILURE)
+		if (server.manageServerLoop(&server) == FAILURE)
 			throw;
 	}
 	catch(const std::exception& e) { std::cerr << e.what() << '\n'; }
