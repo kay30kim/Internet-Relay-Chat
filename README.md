@@ -30,7 +30,7 @@ The `User` class represents an `IRC user` connected to the server. It stores use
 
 - **Regarding the client/server connection** : [Beej's Guide to network programming](https://beej.us/guide/bgnet/pdf/bgnet_a4_c_1.pdf). This is super super helpful to better understand what is a socket, what the `poll()` function entails, which system calls we should use or in which order, and so on.
 
-<p align="center"> <img src="assets/network.png"> </p>
+<img width="417" alt="Image" src="https://github.com/user-attachments/assets/04e5b633-9927-4c7a-b84c-9a2d2261afb5" />
 
 - **A link to the IRC Client Protocol with a good formatting** : [Modern IRC Client Protocol](https://modern.ircdocs.horse/). You will find there a description of all the commands with correct syntax, expected Numerical Replies,...
 
