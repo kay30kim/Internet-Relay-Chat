@@ -10,7 +10,7 @@ void	ban(Server server, cmd_struct cmd_infos)
 	
 	std::map<std::string, Channel>::iterator it;
 	it = server.getChannels().find(channelName);
-	if (it->second.doesClientExist(clientName) == SUCCESS)
+	if (it->second.doesClientExist(clientName) == true)
 	{
 		if (it->second.isOperator(operatorName) == false)
 		{

@@ -249,7 +249,7 @@ void Server::execCommand(Server *server, int const client_fd, std::string cmd_li
 	{
 	// case 1: invite(client_fd, cmd_infos); break;
 	// case 2: join(cmd_infos); break;
-	// case 3: kick(cmd_infos); break;
+	case 3: kick(cmd_infos); break;
 	// case 4: kill(cmd_infos); break;
 	// case 5: list(cmd_infos); break;
 	// case 6: mdp(cmd_infos); break;
