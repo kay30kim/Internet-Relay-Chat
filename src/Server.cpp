@@ -256,7 +256,7 @@ void Server::execCommand(Server *server, int const client_fd, std::string cmd_li
 	// case 7: mode(cmd_infos); break;
 	// case 8: nick(cmd_infos); break;
 	// case 9: part(cmd_infos); break;
-	// case 10: ping(client_fd, cmd_infos); break;
+	case 10: ping(client_fd, cmd_infos); break;
 	case 11: ban(server, cmd_infos); break;
 	// case 12: privmsg(cmd_infos); break;
 	// case 13: topic(cmd_infos); break;
