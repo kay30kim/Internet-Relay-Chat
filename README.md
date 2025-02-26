@@ -5,7 +5,6 @@ The objective of this project is to reproduce the functioning of an IRC(Internet
 <img width="1149" alt="Image" src="https://github.com/user-attachments/assets/23667b4c-c61d-477d-ae91-5238c9f46f57" />
 
 ### Overview
-<img width="671" alt="Image" src="https://github.com/user-attachments/assets/0f688d50-93f1-4654-aec4-3d58aedb73d0" />
 
 #### Multi-Client Server Model
 It follows a client-server architecture, where multiple clients connect to a centralized IRC server to exchange messages. The server handles client authentication, message routing, and channel management.
@@ -25,7 +24,7 @@ The `Channel` class represents an `IRC channel`, where users can join and exchan
 #### User
 The `User` class represents an `IRC user` connected to the server. It stores user-specific information, such as nickname and connection status. Users can join channels, send and receive messages, and interact with other users on the server.
 
-<img src="assets/irc-shema.png">
+<img width="671" alt="Image" src="https://github.com/user-attachments/assets/0f688d50-93f1-4654-aec4-3d58aedb73d0" />
 
 ## Ressources
 
