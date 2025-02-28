@@ -18,5 +18,6 @@ void	unban(Server server, cmd_struct cmd_infos);
 void	kick(Server server, cmd_struct cmd_infos);
 void	quit(Server server, cmd_struct cmd_infos);
 void	oper(Server server, cmd_struct cmd_infos);
+void	join(Server server, Client &client, cmd_struct cmd_infos);
 
 #endif

@@ -213,7 +213,7 @@ void	Server::parseMessage(Server *server, int const client_fd, std::string messa
 }
 void Server::execCommand(Server *server, int const client_fd, std::string cmd_line)
 {
-	std::string	validCmds[VALID_LEN] = {
+	std::string	validCmds[VALID_LEN] =  {
 		"INVITE",
 		"JOIN",
 		"KICK",
@@ -224,8 +224,9 @@ void Server::execCommand(Server *server, int const client_fd, std::string cmd_li
 		"NICK",
 		"PART",
 		"PING",
-		"PONG",
+		"OPER",
 		"PRIVMSG",
+		"QUIT",
 		"TOPIC",
 		"USER",
 		"WHO",
@@ -249,7 +250,7 @@ void Server::execCommand(Server *server, int const client_fd, std::string cmd_li
 	{
 	// case 1: invite(client_fd, cmd_infos); break;
 	// case 2: join(cmd_infos); break;
-	case 3: kick(cmd_infos); break;
+	case 3: kick(server, cmd_infos); break;
 	// case 4: kill(cmd_infos); break;
 	// case 5: list(cmd_infos); break;
 	// case 6: mdp(cmd_infos); break;
@@ -257,7 +258,8 @@ void Server::execCommand(Server *server, int const client_fd, std::string cmd_li
 	// case 8: nick(cmd_infos); break;
 	// case 9: part(cmd_infos); break;
 	case 10: ping(client_fd, cmd_infos); break;
-	case 11: ban(server, cmd_infos); break;
+	case 11: oper(server, cmd_infos); break;
+	case 12: quit(server, cmd_infos); break;
 	// case 12: privmsg(cmd_infos); break;
 	// case 13: topic(cmd_infos); break;
 	// case 14: user(cmd_infos); break;
