@@ -26,7 +26,7 @@ The `User` class represents an `IRC user` connected to the server. It stores use
 
 <img width="671" alt="Image" src="https://github.com/user-attachments/assets/0f688d50-93f1-4654-aec4-3d58aedb73d0" />
 
-## Ressources
+## Resources
 
 - **Regarding the client/server connection** : [Beej's Guide to network programming](https://beej.us/guide/bgnet/pdf/bgnet_a4_c_1.pdf). This is super super helpful to better understand what is a socket, what the `poll()` function entails, which system calls we should use or in which order, and so on.
 
