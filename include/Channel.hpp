@@ -8,7 +8,7 @@ class	Client;
 class Channel
 {
 	private:
-		std::map <std::string, Client>	_clientList;
+		std::map<std::string, Client>	_clientList;
 		std::vector<std::string>		_banned_users;
 		std::vector<std::string>		_operators;
 		std::string 					_name;
@@ -19,6 +19,8 @@ class Channel
 
 		/* Accessors */
 		std::string						getName()const;
+		std::vector<std::string>		getOperators() const;
+		std::vector<std::string>		getBannedUsers() const;
 		std::map <std::string, Client>	getClientList()const;
 		bool							doesClientExist(std::string &clientName);
 		/* Manage client in Channel */
@@ -28,7 +30,7 @@ class Channel
 		/* Operators */
 		void							addFirstOperator(std::string operatorName);
 		void							removeOperator(std::string operatoName);
-		// void
+		// void							addOperator(std::string operatorName);
 		bool							isOperator(std::string &operatorName);
 		void							printOperators(void);
 		/* Client status */

@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "Commands.hpp"
 
 Server::Server() : _servinfo(NULL), _server_socket_fd(0)
 {
@@ -16,15 +17,15 @@ const char * 	Server::InvalidClientException::what (void) const throw()
 	return "The information given by the client are invalid.";
 }
 
-void	Server::setHints()
+void Server::setHints()
 {
 	_hints.ai_family = AF_INET;
 	_hints.ai_socktype = SOCK_STREAM;
 	_hints.ai_flags = AI_PASSIVE;
 }
 
-std::string	Server::getMdp() const
-{ 
+std::string Server::getMdp() const
+{
 	return (_mdp);
 }
 
@@ -33,13 +34,18 @@ std::map<std::string, Channel>	Server::getChannels() const
 	return (_channels);
 }
 
+std::map<const int, Client>		Server::getClients() const
+{
+	return (_clients);
+}
+
 /**
  * @brief Helps set up the structs 'hints' and 'servinfo' of our Server class
- * 
+ *
  * @param port Value given by the user (e.g. "6667")
  * @return int Returns SUCCESS or FAILURE whether getaddrinfo works or not
  */
-int		Server::fillServinfo(char *port)
+int Server::fillServinfo(char *port)
 {
 	if (getaddrinfo(NULL, port, &_hints, &_servinfo) < 0)
 	{
@@ -51,21 +57,21 @@ int		Server::fillServinfo(char *port)
 
 /**
  * @brief This function follows step by step the required function calls to launch the server:
- * 
+ *
  * 		1) socket() => get the server socket file descriptor
  * 		2) setsocktop() => enable the configuration of said socket (here, we wanted
  * 							to allow the re-use of a port if the IP address is different)
  * 		3) bind() => Associate the socket with a specific port (here, the one given by the user)
  * 		4) listen() => Wait for any incoming connections to our server socket
- * 
+ *
  * @return int 0 for SUCCESS and -1 for FAILURE
  */
-int		Server::launchServer()
+int Server::launchServer()
 {
 	_server_socket_fd = socket(_servinfo->ai_family, _servinfo->ai_socktype, _servinfo->ai_protocol);
 	if (_server_socket_fd == FAILURE)
 	{
-		std::cerr << RED << "Socket failes" << RESET << std::endl;
+		std::cerr << RED << "Flop de la socket :(" << RESET << std::endl;
 		return (FAILURE);
 	}
 	int optvalue = 1; // enables the re-use of a port if the IP address is different
@@ -76,7 +82,7 @@ int		Server::launchServer()
 	}
 	if (bind(_server_socket_fd, _servinfo->ai_addr, _servinfo->ai_addrlen) == FAILURE)
 	{
-		std::cerr << RED << "Bind failed" << RESET << std::endl;;
+		std::cerr << RED << "Bind failed" << RESET << std::endl;
 		return (FAILURE);
 	}
 	if (listen(_server_socket_fd, BACKLOG) == FAILURE)
@@ -87,24 +93,24 @@ int		Server::launchServer()
 	return (SUCCESS);
 }
 
-void	Server::addClient(int client_socket, std::vector<pollfd> &poll_fds)
+void Server::addClient(int client_socket, std::vector<pollfd> &poll_fds)
 {
-	pollfd	client_pollfd;
-	Client	new_client(client_socket);
+	pollfd client_pollfd;
+	Client new_client(client_socket);
 
 	client_pollfd.fd = client_socket;
 	client_pollfd.events = POLLIN;
 	poll_fds.push_back(client_pollfd);
-	
-	_clients.insert(std::pair<int, Client>(client_socket, new_client));		// insert a new nod in client map with the fd as key
+
+	_clients.insert(std::pair<int, Client>(client_socket, new_client)); // insert a new nod in client map with the fd as key
 	std::cout << PURPLE << "ADDED CLIENT SUCCESSFULLY" << RESET << std::endl;
 }
 
-void	Server::delClient(std::vector<pollfd> &poll_fds, std::vector<pollfd>::iterator &it)
+void Server::delClient(std::vector<pollfd> &poll_fds, std::vector<pollfd>::iterator &it)
 {
 	std::cout << "Deconnection of client : " << it->fd << std::endl;
 	int key = it->fd;
-	std::vector<pollfd>::iterator		iterator;
+	std::vector<pollfd>::iterator iterator;
 	for (iterator = poll_fds.begin(); iterator != poll_fds.end(); iterator++)
 	{
 		if (iterator->fd == it->fd)
@@ -146,10 +152,8 @@ std::string getWelcomeReply(std::map<const int, Client>::iterator &it)
 
 std::string	cleanStr(std::string str)
 {
-	// Erase the space at the beginning of the str (i.e " marine sanjuan" must be "marine sanjuan")
 	if (str.find(' ') != std::string::npos && str.find(' ') == 0)
 		str.erase(str.find(' '), 1);
-	// Erase any Carriage Returns in the str. Note : the '\n' has already be dealt with in the function SplitMessage
 	if (str.find('\r') != std::string::npos)
 		str.erase(str.find('\r'), 1);
 	return (str);
@@ -158,7 +162,7 @@ std::string	cleanStr(std::string str)
 void Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::vector<std::string> cmds)
 {
 	std::map<const int, Client>::iterator it;
-	
+
 	it = client_list.find(client_fd);
 	for (size_t i = 0; i != cmds.size(); i++)
 	{
@@ -182,12 +186,12 @@ void Server::fillClients(std::map<const int, Client> &client_list, int client_fd
 		throw Server::InvalidClientException();
 }
 
-static void	splitMessage(std::vector<std::string> &cmds, std::string msg)
+static void splitMessage(std::vector<std::string> &cmds, std::string msg)
 {
-	int 		pos = 0;
-	std::string	delimiter = "\n";
-	std::string	substr;
-	
+	int pos = 0;
+	std::string delimiter = "\n";
+	std::string substr;
+
 	while ((pos = msg.find(delimiter)) != static_cast<int>(std::string::npos))
 	{
 		substr = msg.substr(0, pos);
@@ -212,9 +216,9 @@ void Server::parseMessage(int const client_fd, std::string message)
 	}
 }
 
-void Server::execCommand( int const client_fd, std::string cmd_line)
+void Server::execCommand(int const client_fd, std::string cmd_line)
 {
-	std::string	validCmds[VALID_LEN] =  {
+	std::string	validCmds[VALID_LEN] = {
 		"INVITE",
 		"JOIN",
 		"KICK",
@@ -251,7 +255,7 @@ void Server::execCommand( int const client_fd, std::string cmd_line)
 	{
 	// case 1: invite(client_fd, cmd_infos); break;
 	case 2: join(this, client_fd, cmd_infos); break;
-	case 3: kick(this, cmd_infos); break;
+	// case 3: kick(this, cmd_infos); break;
 	// case 4: kill(cmd_infos); break;
 	// case 5: list(cmd_infos); break;
 	// case 6: mdp(cmd_infos); break;
@@ -259,9 +263,9 @@ void Server::execCommand( int const client_fd, std::string cmd_line)
 	// case 8: nick(cmd_infos); break;
 	// case 9: part(cmd_infos); break;
 	case 10: ping(client_fd, cmd_infos); break;
-	case 11: oper(this, cmd_infos); break;
+	// case 11: oper(this, cmd_infos); break;
+	// case 12: quit(this, cmd_infos); break;
 	// case 12: privmsg(cmd_infos); break;
-	case 13: quit(this, cmd_infos); break;
 	// case 13: topic(cmd_infos); break;
 	// case 14: user(cmd_infos); break;
 	// case 15: who(cmd_infos); break;

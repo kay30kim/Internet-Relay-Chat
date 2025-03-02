@@ -3,7 +3,6 @@
 
 #include "Irc.hpp"
 #include "Client.hpp"
-#include "Commands.hpp"
 #include "Channel.hpp"
 
 class Server
@@ -14,7 +13,8 @@ class Server
 		int								_server_socket_fd;
 		std::map<const int, Client>		_clients;
 		std::map<std::string, Channel>	_channels;
-		std::string					_mdp = "password";
+		// Commands						_cmd;
+		std::string						_mdp = "pantoufle";
 	
 	public:
 		// Constructor & destructor
@@ -24,7 +24,7 @@ class Server
 		void							setHints();
 		std::string						getMdp() const;
 		std::map<std::string, Channel>	getChannels() const;
-
+		std::map<const int, Client>		getClients() const;
 		// Running Server functions
 		int			fillServinfo(char *port);
 		int			launchServer();

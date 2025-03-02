@@ -10,19 +10,15 @@ Client::~Client()
 	std::cout << YELLOW << "Client destructor" << RESET << std::endl;
 }
 
-int	Client::getClientFd()const
-{
-	return (_client_fd);
-}
+int				Client::getClientFd() const { return (_client_fd); }
+std::string		Client::getNickname() const { return (_nickname); }
+std::string 	Client::getUsername() const { return (_fullname); }
+std::string		Client::getRealname() const { return (_realname); }
 
 void	Client::setNickname(std::string const &nickname)
 {
-	_nickname = nickname;
-}
-
-std::string		Client::getNickname()const
-{
-	return (_nickname);
+	// If the nickname has more than 9 characters, it must be truncated
+	_nickname = (_nickname.size() > 9) ? nickname.substr(0, 9) : nickname;
 }
 
 void	Client::setUsername(std::string const &username)
@@ -30,19 +26,9 @@ void	Client::setUsername(std::string const &username)
 	_fullname = username;
 }
 
-std::string 	Client::getUsername()const
-{
-	return (_fullname);
-}
-
 void	Client::setRealname(std::string const &realname)
 {
 	_realname = realname;
-}
-
-std::string	Client::getRealname()const
-{
-	return (_realname);
 }
 
 void	Client::printClient()const
@@ -55,7 +41,6 @@ void	Client::printClient()const
 
 }
 
-// TODO
 int	Client::is_valid() const
 {
 	if (_fullname.empty())
