@@ -2,9 +2,10 @@
 #include "Channel.hpp"
 #include "Server.hpp"
 
-void	addChannel(Server server, Client &client,cmd_struct cmd_infos);
-void	addClientToChannel(std::string &channelName, Client &client);
-void	printChannel(std::string &channelName);
+std::string		getChannelName(std::string msg_to_parse);
+void			addChannel(Server server, std::string const &channelName);
+void			addClientToChannel(Server server, std::string &channelName, Client &client);
+void			printChannel(Server server, std::string &channelName);
 
 /**
  * @brief The JOIN command indicates that the client wants to join the given channel(s), 
@@ -39,24 +40,46 @@ void	printChannel(std::string &channelName);
  * 	[CLIENT]  JOIN #foo,#bar fubar,foobar
  * 	[SERVER]; join channel #foo using key "fubar" and channel #bar using key "foobar".
  */
-void	join(Server server, Client &client, cmd_struct cmd_infos)
+void	join(Server server, int const client_fd, cmd_struct cmd_infos)
 {
-	std::string channelName;
+	std::string channelName = getChannelName(cmd_infos.message);
+
+	std::map<const int, Client>::iterator it_client = client_list.find(client_fd);
+	Client client = it_client->second;
 
 	std::map<std::string, Channel>			 channels = server.getChannels();
 	std::map<std::string, Channel>::iterator it = channels.find(channelName);
 	if (it == channels.end())
 		addChannel(server, channelName);
-	if (it->second.isBanned(client.getNickname()) == SUCCESS) // BUG
-	{
+	
+	std::string client_nickname = client.getNickname();
+	if (it->second.isBanned(client_nickname) == SUCCESS) {
 		std::cout << client.getNickname() << " is banned from " << channelName << std::endl; 
 		return ;
+	} 
+	else {
+		addClientToChannel(server, channelName, client);
+		it->second.addFirstOperator(client.getNickname());
 	}
-	addClientToChannel(server, channelName, client);
-	it->second.addFirstOperator(client.getNickname());
-
 }
 
+std::string	getChannelName(std::string msg_to_parse)
+{
+	std::cout << "The msg_to_parse looks like this : |" << msg_to_parse << "|" << std::endl;
+	// Expected output : | #foobar|
+	// Expected output 2 : | #foo,#bar fubar,foobar|
+
+	// Logique pour l'output 2 : on erase les channels (avec leur keys quand elles en ont) au fur et à mesure qu'on join
+
+	std::string channel_name;
+	for (size_t i = 0; i < msg_to_parse.size(); i++)
+	{
+		if (isalpha(msg_to_parse[i]))
+			channel_name.append(msg_to_parse[i]);
+	}
+	std::cout << "The channel name is : |" << channel_name << "|" << std::endl;
+	return (channel_name);
+}
 
 void	addChannel(Server server, std::string const &channelName)
 {
@@ -78,7 +101,8 @@ void	addClientToChannel(Server server, std::string &channelName, Client &client)
 	std::map<std::string, Channel>			 channels = server.getChannels();
 	std::map<std::string, Channel>::iterator it;
 	it = channels.find(channelName);
-	if (it->second.doesClientExist(client.getNickname()) == false) // BUG 
+	std::string client_nickname = client.getNickname();
+	if (it->second.doesClientExist(client_nickname) == false) // BUG 
 	{
 		it->second.addClientToChannel(client);
 	}

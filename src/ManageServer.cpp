@@ -37,7 +37,7 @@ static void	print(std::string type, int client_socket, char *message)
 			  << BLUE << (message == NULL ? "\n" : message) << RESET << std::endl;
 }
 
-int Server::manageServerLoop(Server *server)
+int Server::manageServerLoop()
 {
 	std::vector<pollfd>	poll_fds;
 	pollfd				server_poll_fd;
@@ -88,16 +88,32 @@ int Server::manageServerLoop(Server *server)
 					{
 						std::cerr << RED << "Recv() failed [456]" << RESET << std::endl;
 						delClient(poll_fds, it);
+						if ((unsigned int)(poll_fds.size() - 1) == 0)
+							break;
 					}
 					else if (read_count == 0) // when a client disconnects
 					{
 						delClient(poll_fds, it);
 						std::cout << "Disconnected\n";
+						if ((unsigned int)(poll_fds.size() - 1) == 0)
+							break;
 					}
 					else
 					{
-						print("Recv : ", it->fd, message);
-						parseMessage(it->fd, message);
+						print("Recv : ", it->fd, message); // si affichage incoherent regarder ici
+						try 
+						{
+							parseMessage(it->fd, message);
+						}
+						catch(const std::exception& e) 
+						{ 
+							std::cout << "Caught exception : " << std::endl;
+							std::cerr << e.what() << std::endl;
+							delClient(poll_fds, it);
+							std::cout << "Client deleted." << std::endl;
+							if ((unsigned int)(poll_fds.size() - 1) == 0)
+								break;
+						}
 						it++;
 					}
 				}

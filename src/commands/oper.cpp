@@ -26,16 +26,16 @@ void	oper(Server server, cmd_struct cmd_infos)
 	std::string operatorName;
 	std::string password;
 
+	std::map<std::string, Channel> channels = server.getChannels();
+	std::map<std::string, Channel>::iterator it;
+	it = channels.find(channelName);
 
-	if (password != _operatorPassword)
+	if (password != it.getOperatorPassword())
 	{
 		std::cout << "Wrong Password\n";
 		return ;
 	}
 
-	std::map<std::string, Channel>	channels = server.getChannels();
-	std::map<std::string, Channel>::iterator it;
-	it = channels.find(channelName);
 	if (it == channels.end())
 	{
 		std::cout << "That channel doesn't exist\n";
