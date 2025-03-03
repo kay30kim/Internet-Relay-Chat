@@ -24,19 +24,17 @@ void Server::setHints()
 	_hints.ai_flags = AI_PASSIVE;
 }
 
-std::string Server::getMdp() const
-{
-	return (_mdp);
-}
+std::string 					Server::getPort()	  const { return (_port); }
 
-std::map<std::string, Channel>	Server::getChannels() const
-{
-	return (_channels);
-}
+std::string 					Server::getPassword() const { return (_password); }
 
-std::map<const int, Client>		Server::getClients() const
+std::map<std::string, Channel>&	Server::getChannels()		{ return (_channels); }
+
+std::map<const int, Client>&	Server::getClients()		{ return (_clients); }
+
+void							Server::setPassword(std::string new_pwd)
 {
-	return (_clients);
+	_password = new_pwd;
 }
 
 /**
@@ -49,7 +47,7 @@ int Server::fillServinfo(char *port)
 {
 	if (getaddrinfo(NULL, port, &_hints, &_servinfo) < 0)
 	{
-		std::cerr << RED << "Flop du addrinfo" << RESET << std::endl;
+		std::cerr << RED << "Fail addressinfo" << RESET << std::endl;
 		return (FAILURE);
 	}
 	return (SUCCESS);
@@ -71,7 +69,7 @@ int Server::launchServer()
 	_server_socket_fd = socket(_servinfo->ai_family, _servinfo->ai_socktype, _servinfo->ai_protocol);
 	if (_server_socket_fd == FAILURE)
 	{
-		std::cerr << RED << "Flop de la socket :(" << RESET << std::endl;
+		std::cerr << RED << "Socket failed" << RESET << std::endl;
 		return (FAILURE);
 	}
 	int optvalue = 1; // enables the re-use of a port if the IP address is different
@@ -108,7 +106,7 @@ void Server::addClient(int client_socket, std::vector<pollfd> &poll_fds)
 
 void Server::delClient(std::vector<pollfd> &poll_fds, std::vector<pollfd>::iterator &it)
 {
-	std::cout << "Deconnection of client : " << it->fd << std::endl;
+	std::cout << "Client disconnected : " << it->fd << std::endl;
 	int key = it->fd;
 	std::vector<pollfd>::iterator iterator;
 	for (iterator = poll_fds.begin(); iterator != poll_fds.end(); iterator++)
@@ -159,31 +157,32 @@ std::string	cleanStr(std::string str)
 	return (str);
 }
 
-void Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::vector<std::string> cmds)
+void Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::string cmd)
 {
-	std::map<const int, Client>::iterator it;
-
-	it = client_list.find(client_fd);
-	for (size_t i = 0; i != cmds.size(); i++)
+	std::map<const int, Client>::iterator it = client_list.find(client_fd);
+	
+	if (cmd.find("NICK") != std::string::npos)
 	{
-		if (cmds[i].find("NICK") != std::string::npos)
-		{
-			cmds[i].erase(cmds[i].find("NICK"), 4);
-			cmds[i] = cleanStr(cmds[i]);
-			it->second.setNickname(cmds[i]);
-		}
-		else if (cmds[i].find("USER") != std::string::npos)
-		{
-			cmds[i].erase(cmds[i].find("USER "), 5);
-			it->second.setUsername(cmds[i].substr(cmds[i].find(" "), cmds[i].find(" ") + 1));
-			it->second.setUsername(cleanStr(it->second.getUsername()));
-			it->second.setRealname(cmds[i].substr(cmds[i].find(":") + 1, cmds[i].length() - cmds[i].find(":") + 1));
-		}
+		cmd.erase(cmd.find("NICK"), 4);
+		cmd = cleanStr(cmd);
+		it->second.setNickname(cmd);
 	}
-	if (it->second.is_valid() == SUCCESS)
-		send(client_fd, getWelcomeReply(it).c_str(), getWelcomeReply(it).size(), 0);
-	else
-		throw Server::InvalidClientException();
+	else if (cmd.find("USER") != std::string::npos)
+	{
+		cmd.erase(cmd.find("USER "), 5);
+		it->second.setUsername(cmd.substr(cmd.find(" "), cmd.find(" ") + 1));
+		it->second.setUsername(cleanStr(it->second.getUsername()));
+		it->second.setRealname(cmd.substr(cmd.find(":") + 1, cmd.length() - cmd.find(":") + 1));
+	}
+	else if (cmd.find("PASS") != std::string::npos)
+	{
+		cmd_struct cmd_infos;
+		parseCommand(cmd, cmd_infos);
+		if (pass(this, client_fd, cmd_infos) == SUCCESS)
+			it->second.setConnexionPassword(true);
+		else
+			it->second.setConnexionPassword(false);
+	}
 }
 
 static void splitMessage(std::vector<std::string> &cmds, std::string msg)
@@ -202,16 +201,34 @@ static void splitMessage(std::vector<std::string> &cmds, std::string msg)
 
 void Server::parseMessage(int const client_fd, std::string message)
 {
-	std::vector<std::string> cmds;
+	std::vector<std::string>				cmds;
+	std::map<const int, Client>::iterator	it = _clients.find(client_fd);
 
 	splitMessage(cmds, message);
-	if (cmds[0].find("CAP LS") != std::string::npos)
+
+	for (size_t i = 0; i != cmds.size(); i++)
 	{
-		fillClients(_clients, client_fd, cmds);
-	}
-	else
-	{
-		for (size_t i = 0; i != cmds.size(); i++)
+		if (it->second.isRegistrationDone() == false)
+		{
+			if (it->second.hasAllInfo() == false)
+			{
+				fillClients(_clients, client_fd, cmds[i]);
+				if (cmds[i].find("USER") != std::string::npos)
+					it->second.hasAllInfo() = true;
+			}
+			if (it->second.hasAllInfo() == true && it->second.isWelcomeSent() == false)
+			{
+				if (it->second.is_valid() == SUCCESS)
+				{
+					send(client_fd, getWelcomeReply(it).c_str(), getWelcomeReply(it).size(), 0);
+					it->second.isWelcomeSent() = true;
+					it->second.isRegistrationDone() = true;
+				}		
+				else
+					throw Server::InvalidClientException();
+			}
+		}
+		else
 			execCommand(client_fd, cmds[i]);
 	}
 }
@@ -224,7 +241,6 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 		"KICK",
 		"KILL",
 		"LIST",
-		"MDP",
 		"MODE",
 		"NICK",
 		"PART",
@@ -253,20 +269,19 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 
 	switch (index + 1)
 	{
-	// case 1: invite(client_fd, cmd_infos); break;
+	case 1: invite(this, client_fd, cmd_infos); break;
 	case 2: join(this, client_fd, cmd_infos); break;
 	// case 3: kick(this, cmd_infos); break;
 	// case 4: kill(cmd_infos); break;
-	// case 5: list(cmd_infos); break;
-	// case 6: mdp(cmd_infos); break;
-	// case 7: mode(cmd_infos); break;
-	// case 8: nick(cmd_infos); break;
-	// case 9: part(cmd_infos); break;
-	case 10: ping(client_fd, cmd_infos); break;
-	// case 11: oper(this, cmd_infos); break;
+	case 5: list(this, client_fd, cmd_infos); break;
+	// case 6: mode(cmd_infos); break;
+	case 7: nick(this, client_fd, cmd_infos); break;
+	// case 8: part(cmd_infos); break;
+	case 9: ping(client_fd, cmd_infos); break;
+	// case 10: oper(this, cmd_infos); break;
+  // case 11: privmsg(cmd_infos); break;
 	// case 12: quit(this, cmd_infos); break;
-	// case 12: privmsg(cmd_infos); break;
-	// case 13: topic(cmd_infos); break;
+	case 13: topic(this, client_fd, cmd_infos); break;
 	// case 14: user(cmd_infos); break;
 	// case 15: who(cmd_infos); break;
 	// case 16: whois(cmd_infos); break;
@@ -274,4 +289,30 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 	default:
 		std::cout << PURPLE << "This command is not supported by our services." << RESET << std::endl;
 	}
+}
+
+void Server::addChannel(std::string &channelName)
+{
+	std::map<std::string, Channel>::iterator it = _channels.find(channelName);
+	if (it != _channels.end())
+	{
+		std::cout << "Channel already exists, choose an other name\n";
+		return ;
+	}
+	Channel	channel(channelName);
+	_channels.insert(std::pair<std::string, Channel>(channel.getName(), channel));
+}
+
+void Server::addClientToChannel(std::string &channelName, Client &client)
+{
+	std::map<std::string, Channel>::iterator it;
+	it = _channels.find(channelName);
+	std::string client_nickname = client.getNickname();
+	if (it->second.doesClientExist(client_nickname) == false)
+	{
+		it->second.addClientToChannel(client);
+		std::cout << "Client successfully joined the channel" << channelName << "!" << std::endl;
+	}
+	else 
+		std::cout << YELLOW << client.getNickname() << "already here\n" << RESET;
 }

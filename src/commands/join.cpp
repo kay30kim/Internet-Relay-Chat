@@ -48,22 +48,20 @@ void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 	std::map<const int, Client>::iterator it_client = client_list.find(client_fd);
 	Client client = it_client->second;
 
-	std::map<std::string, Channel>			 channels = server->getChannels();
-	std::map<std::string, Channel>::iterator it = channels.find(channelName);
-	if (it == channels.end())
+	std::map<std::string, Channel>::iterator it = server->getChannels().find(channelName);
+	if (it == server->getChannels().end())
 		addChannel(server, channelName);
-	
-	std::string client_nickname = client.getNickname();
 
-	std::map<std::string, Channel>			 channelss = server->getChannels();
-	std::map<std::string, Channel>::iterator it_chan = channelss.find(channelName);
+	std::string client_nickname = client.getNickname();
+	std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channelName);
 	if (it_chan->second.isBanned(client_nickname) == true) {
 		std::cout << client.getNickname() << " is banned from " << channelName << std::endl; 
 		return ;
 	} 
 	else {
-		addClientToChannel(server, channelName, client);
-		it->second.addFirstOperator(client.getNickname());
+		server->addClientToChannel(channelName, client);
+		it_chan->second.addFirstOperator(client.getNickname());
+		printChannel(server, channelName);
 	}
 }
 

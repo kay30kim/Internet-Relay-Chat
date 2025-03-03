@@ -1,9 +1,9 @@
 #include "Irc.hpp"
 #include "Channel.hpp"
 #include "Server.hpp"
+#include "Commands.hpp"
 
-std::string	findNickname(std::string msg_to_parse);
-
+static std::string	findChannel(std::string msg_to_parse);
 /**
  * @brief The INVITE command is used to invite a user to a channel. 
  * 	The parameter <nickname> is the nickname of the person to be invited to the 
@@ -12,27 +12,78 @@ std::string	findNickname(std::string msg_to_parse);
  * 	Syntax : INVITE <nickname> <channel>
  * 
  */
-void	invite(Server server, int const client_fd, cmd_struct cmd_infos)
+void	invite(Server *server, int const client_fd, cmd_struct cmd_infos)
 {
-	// Parsing
-	std::string nickname = findNickname(cmd_infos.message);
-	std::string channel = findChannel(cmd_infos.message);
-
-	// Check if the channel exists (if not = ERR_NOSUCHCHANNEL)
-
-	// Check that the person inviting is a member of said channel (if not = ERR_NOTONCHANNEL)
-
-	// Check that, if the channel is on invite-only mode, the user inviting is an operator
-
-	// Check that the invited user is not already on the channel (if not = ERR_USERONCHANNEL)
+	Client&		client			= retrieveClient(server, client_fd);
+	std::string	client_nickname	= client.getNickname();
+	std::string channel_name	= findChannel(cmd_infos.message);
+	std::string invited_client	= findNickname(cmd_infos.message);
 	
-	// If all checks are successful => send a RPL_INVITING to the inviting user 
-	//							   and send an INVITE msg to the invited user
+	if (client_nickname.empty() || channel_name.empty())
+	{
+		sendServerRpl(client_fd, ERR_NEEDMOREPARAMS(client_nickname, cmd_infos.name));
+		return ;
+	}
+
+	// Check if the channel exists
+	std::map<std::string, Channel>			 channels = server->getChannels();
+	std::map<std::string, Channel>::iterator channel = channels.find(channel_name);
+	if (channel == channels.end())
+	{
+		sendServerRpl(client_fd, ERR_NOSUCHCHANNEL(client_nickname, channel_name));
+		return ;
+	}
+	
+	// Check that the person inviting is a member of said channel
+	if (channel->second.doesClientExist(client_nickname) == false)
+	{
+		sendServerRpl(client_fd, ERR_NOTONCHANNEL(client_nickname, channel_name));
+		return ;
+	}
+
+	// Check that the invited user is not already on the channel
+	if (channel->second.doesClientExist(invited_client) == true)
+	{
+		sendServerRpl(client_fd, ERR_USERONCHANNEL(client_nickname, invited_client, channel_name));
+		return ;
+	}
+	
+	// If all checks are successful => send a RPL_INVITING + invite to the inviting user 
+	sendServerRpl(client_fd, RPL_INVITING(client_nickname, invited_client, channel_name));
+	
+	std::map<std::string, Client> clients = channel->second.getClientList();
+	std::map<std::string, Client>::iterator invited = clients.find(invited_client);
+	std::string user_id = ":" +	invited->second.getNickname() + "!" + invited->second.getUsername() + "@localhost";
+	std::string invite = user_id + ":Knock knock! You are invited to join the channel #" + channel_name + " by " + client_nickname + " .\r\n";
+	send(invited->second.getClientFd(), invite.c_str(), invite.size(), 0);
 }
 
 // Exemple of user input : "INVITE Wiz #foo_bar"
 // 							=> msg_to_parse is " Wiz #foo_bar"
 std::string	findNickname(std::string msg_to_parse)
 {
-	//
+	std::string nickname;
+	
+	char *str = const_cast<char *>(msg_to_parse.data());
+	nickname = strtok(str, " ");
+	
+	if (nickname.empty()
+		|| nickname.find("#") != nickname.npos)
+		nickname.clear();
+	return (nickname);
+}
+
+std::string	findChannel(std::string msg_to_parse)
+{
+	std::string channel;
+
+	if (msg_to_parse.empty() || msg_to_parse.find("#") == msg_to_parse.npos)
+	{
+		channel.clear();
+	}
+	else
+	{
+		channel.append(msg_to_parse, msg_to_parse.find("#") + 1, std::string::npos);
+	}
+	return (channel);
 }

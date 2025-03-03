@@ -4,19 +4,16 @@ Channel::Channel(std::string const &channelName): _name(channelName) {}
 
 Channel::~Channel() {}
 
-std::string		Channel::getName() const
-{
-	return (_name);
-}
 
-std::map <std::string, Client>	Channel::getClientList() const
-{
-	return (_clientList);
-}
+std::string&						Channel::getName() 			{ return (_name); }
+std::string&						Channel::getTopic() 		{ return (_topic); }
+std::map <std::string, Client>&		Channel::getClientList()	{ return (_clientList); }
+std::vector<std::string>&			Channel::getBannedUsers()	{ return (_banned_users); }
+std::vector<std::string>&			Channel::getOperators() 	{ return (_operators); }
 
-std::vector<std::string>		Channel::getOperators() const
+void		Channel::setTopic(std::string& newTopic)
 {
-	return (_operators);
+	_topic = newTopic;
 }
 
 bool	Channel::doesClientExist(std::string &clientName)

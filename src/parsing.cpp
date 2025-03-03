@@ -1,4 +1,5 @@
 #include "Irc.hpp"
+#include "Commands.hpp"
 
 int	parseCommand(std::string cmd_line, cmd_struct &cmd_infos)
 {

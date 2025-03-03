@@ -22,13 +22,7 @@
  */
 int	ping(int const client_fd, cmd_struct &cmd)
 {
-    // Check the string (Does the identifier exist? Is the user registered or online? 
-    // Does the channel exist?)
-	std::cout << client_fd << " is the client_fd. Message de la cmd : " << YELLOW << cmd.message << RESET << std::endl;
-	
-    // Send back a PONG with the same token.
-	std::string pong_reply = "PONG" + cmd.message + "\r\n";
-	send(client_fd, pong_reply.c_str(), pong_reply.size(), 0);
-	
+	sendServerRpl(client_fd, RPL_PONG(cmd.message));
+
 	return (SUCCESS);
 }
