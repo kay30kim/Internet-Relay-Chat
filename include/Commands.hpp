@@ -2,6 +2,7 @@
 #define COMMANDS_HPP
 
 # include "Irc.hpp"
+# include "Client.hpp"
 # include "Server.hpp"
 # define VALID_LEN 17
 

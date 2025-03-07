@@ -2,10 +2,11 @@ CXX = c++
 CXXFLAGS = -Wall -Wextra -MMD -MP -g3 -std=c++98 -I$(INC_DIR)
 
 SRC_DIR = src
+CMD_DIR = src/commands
+SRCS = main.cpp $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(CMD_DIR)/*.cpp)
 INC_DIR = include
 OBJ_DIR = obj
 
-SRCS = main.cpp $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 
 TARGET = irc_server

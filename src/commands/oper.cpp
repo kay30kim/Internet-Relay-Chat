@@ -30,11 +30,11 @@ void	oper(Server server, cmd_struct cmd_infos)
 	std::map<std::string, Channel>::iterator it;
 	it = channels.find(channelName);
 
-	if (password != it.getOperatorPassword())
-	{
-		std::cout << "Wrong Password\n";
-		return ;
-	}
+	// if (password != it.getOperatorPassword())
+	// {
+	// 	std::cout << "Wrong Password\n";
+	// 	return ;
+	// }
 
 	if (it == channels.end())
 	{
