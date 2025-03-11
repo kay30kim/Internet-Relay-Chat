@@ -42,15 +42,16 @@ void			sendChanInfos(Channel &channel, std::string channel_name, Client &client)
  */
 void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 {
+	Client		client 	= retrieveClient(server, client_fd);
 	std::string channel_name;
 
+	if (containsAtLeastOneAlphaChar(cmd_infos.message) == false)
+		sendServerRpl(client_fd, ERR_NEEDMOREPARAMS(client.getNickname(), cmd_infos.name));
 	while (containsAtLeastOneAlphaChar(cmd_infos.message) == true)
 	{
 		channel_name.clear();
 		channel_name = getChannelName(cmd_infos.message);
 		cmd_infos.message.erase(cmd_infos.message.find(channel_name), channel_name.length()); 
-
-		Client client = retrieveClient(server, client_fd);
 
 		std::map<std::string, Channel>&			 channels 	= server->getChannels();
 		std::map<std::string, Channel>::iterator it			= channels.find(channel_name);
@@ -59,7 +60,7 @@ void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 		std::string client_nickname = client.getNickname();
 		std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channel_name);
 		if (it_chan->second.isBanned(client_nickname) == true) {
-			std::cout << client.getNickname() << " is banned from " << channel_name << std::endl; 
+			sendServerRpl(client_fd, ERR_BANNEDFROMCHAN(client_nickname, channel_name));
 			return ;
 		} 
 		else {
@@ -79,8 +80,12 @@ void		sendChanInfos(Channel &channel, std::string channel_name, Client &client)
  	std::string	client_id	= ":" + nick + "!" + username + "@localhost";
   	
  	sendServerRpl(client_fd, RPL_JOIN(username, nick, channel_name));
- 	if (channel.getTopic().empty() == false)
- 		sendServerRpl(client_fd, RPL_TOPIC(client_id, channel_name, channel.getTopic()));
+	if (channel.getTopic().empty() == false)
+	{
+		sendServerRpl(client_fd, RPL_TOPIC(client_id, channel_name, channel.getTopic()));
+		sendServerRpl(client_fd, RPL_DISPLAYTOPIC(client_id, channel_name));
+	}
+
 	// TODO: Once NAMES is implemented, send a list of users in the channel 
 	// using multiple RPL_NAMREPLY (353) messages, followed by a single RPL_ENDOFNAMES (366).
 	// The RPL_NAMREPLY messages must include the requesting client who just joined.
