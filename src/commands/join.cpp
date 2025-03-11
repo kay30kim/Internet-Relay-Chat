@@ -6,7 +6,6 @@ bool			containsAtLeastOneAlphaChar(std::string str);
 std::string		getChannelName(std::string msg_to_parse);
 void			addChannel(Server *server, std::string const &channelName);
 void			addClientToChannel(Server *server, std::string &channelName, Client &client);
-void			printChannel(Server *server, std::string &channelName);
 /**
  * @brief The JOIN command indicates that the client wants to join the given channel(s), 
  * 	each channel using the given key for it. The server receiving the command checks 
@@ -42,26 +41,32 @@ void			printChannel(Server *server, std::string &channelName);
  */
 void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 {
-	std::string channelName = getChannelName(cmd_infos.message);
+	std::string channelName;
 
-	std::map<const int, Client>	client_list = server->getClients();
-	std::map<const int, Client>::iterator it_client = client_list.find(client_fd);
-	Client client = it_client->second;
+	while (containsAtLeastOneAlphaChar(cmd_infos.message) == true)
+	{
+		channelName.clear();
+		channelName = getChannelName(cmd_infos.message);
+		cmd_infos.message.erase(cmd_infos.message.find(channelName), channelName.length()); 
 
-	std::map<std::string, Channel>::iterator it = server->getChannels().find(channelName);
-	if (it == server->getChannels().end())
-		addChannel(server, channelName);
+		Client client = retrieveClient(server, client_fd);
 
-	std::string client_nickname = client.getNickname();
-	std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channelName);
-	if (it_chan->second.isBanned(client_nickname) == true) {
-		std::cout << client.getNickname() << " is banned from " << channelName << std::endl; 
-		return ;
-	} 
-	else {
-		server->addClientToChannel(channelName, client);
-		it_chan->second.addFirstOperator(client.getNickname());
-		printChannel(server, channelName);
+		std::map<std::string, Channel>&			 channels 	= server->getChannels();
+		std::map<std::string, Channel>::iterator it			= channels.find(channelName);
+		if (it == channels.end())
+			addChannel(server, channelName);
+		std::string client_nickname = client.getNickname();
+		std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channelName);
+		if (it_chan->second.isBanned(client_nickname) == true) {
+			std::cout << client.getNickname() << " is banned from " << channelName << std::endl; 
+			return ;
+		} 
+		else {
+			addClientToChannel(server, channelName, client);
+			if (it_chan->second.getOperators().empty())
+				it_chan->second.addFirstOperator(client.getNickname());
+			
+		}
 	}
 }
 
@@ -85,7 +90,7 @@ std::string	getChannelName(std::string msg_to_parse)
 	size_t i = 0;
 	while (!isalpha(msg_to_parse[i]))
 		i++;
-	while (isalpha(msg_to_parse[i])) // as soon as there is a space or comma, it means the word is finished
+	while (isalpha(msg_to_parse[i]) || msg_to_parse[i] == '-' || msg_to_parse[i] == '_') // as soon as there is a space or comma, it means the word is finished
 		channel_name += msg_to_parse[i++];
 	std::cout << "The channel name is : |" << channel_name << "|" << std::endl;
 	return (channel_name);
@@ -93,15 +98,15 @@ std::string	getChannelName(std::string msg_to_parse)
 
 void	addChannel(Server *server, std::string const &channelName)
 {
-	std::map<std::string, Channel>			 channels = server->getChannels();
-	std::map<std::string, Channel>::iterator it = channels.find(channelName);
-	if (it != channels.end())
+	// check if channel already exists.
+	std::map<std::string, Channel>::iterator it = server->getChannels().find(channelName);
+	if (it != server->getChannels().end())
 	{
 		std::cout << "Channel already exists, choose an other name\n";
 		return ;
 	}
 	Channel	channel(channelName);
-	channels.insert(std::pair<std::string, Channel>(channelName, channel));
+	server->getChannels().insert(std::pair<std::string, Channel>(channelName, channel));
 	std::cout << RED << "Channel added: " << channelName << RESET << std::endl;
 }
 
@@ -118,12 +123,4 @@ void	addClientToChannel(Server *server, std::string &channelName, Client &client
 	}
 	else 
 		std::cout << YELLOW << client.getNickname() << "already here\n" << RESET;
-}
-
-void	printChannel(Server *server, std::string &channelName)
-{
-	std::map<std::string, Channel>			 	channels = server->getChannels();
-	std::map<std::string, Channel> 				tmp; 
-	std::map<std::string, Channel>::iterator	it = channels.find(channelName);
-	it->second.printClientList();
 }
