@@ -1,6 +1,7 @@
 #include "Irc.hpp"
 #include "Server.hpp"
 #include "Channel.hpp"
+#include "Commands.hpp"
 
 void	unban(Server server, cmd_struct cmd_infos)
 {

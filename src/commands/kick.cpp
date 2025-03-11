@@ -1,6 +1,7 @@
 #include "Irc.hpp"
 #include "Channel.hpp"
 #include "Server.hpp"
+#include "Commands.hpp"
 
 /**
  * @brief The KICK command can be used to request the forced removal of a user 

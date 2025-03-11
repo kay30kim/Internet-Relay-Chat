@@ -1,6 +1,7 @@
 #include "Irc.hpp"
 #include "Channel.hpp"
 #include "Server.hpp"
+#include "Commands.hpp"
 
 void	ban(Server server, cmd_struct cmd_infos)
 {

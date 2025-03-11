@@ -1,6 +1,7 @@
 #include "Irc.hpp"
 #include "Channel.hpp"
 #include "Server.hpp"
+#include "Commands.hpp"
 
 /**
  * @brief The QUIT command is used to terminate a client’s connection to the server. 

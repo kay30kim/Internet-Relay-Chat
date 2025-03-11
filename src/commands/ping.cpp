@@ -1,4 +1,5 @@
 #include "Irc.hpp"
+#include "Commands.hpp"
 
 /**
  * @brief The PING command is used to check if the other side of the connection 

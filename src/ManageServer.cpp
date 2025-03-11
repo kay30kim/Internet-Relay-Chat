@@ -86,28 +86,27 @@ int Server::manageServerLoop() {
 
                     if (read_count <= FAILURE) {
                         std::cerr << RED << "Recv() failed" << RESET << std::endl;
-                        delClient(poll_fds, it);
+                        delClient(poll_fds, it->fd);
                         if ((unsigned int)(poll_fds.size() - 1) == 0)
                             break;
                     }
                     else if (read_count == 0) {
-                        delClient(poll_fds, it);
+                        delClient(poll_fds, it->fd);
                         std::cout << "Disconnected\n";
                         if ((unsigned int)(poll_fds.size() - 1) == 0)
                             break;
                     }
                     else {
-                        print("Recv : ", it->fd, message);
+                        print("[Client] Recv : ", it->fd, message);
                         try {
                             parseMessage(it->fd, message);
                         }
                         catch (const std::exception& e) {
-                            std::cout << "Caught exception : " << std::endl;
+                            std::cout << "[Server] Caught exception : " << std::endl;
                             std::cerr << e.what() << std::endl;
-                            delClient(poll_fds, it);
-                            std::cout << "Client deleted." << std::endl;
-                            if ((unsigned int)(poll_fds.size() - 1) == 0)
-                                break;
+                            delClient(poll_fds, it->fd);
+ 							std::cout << "[SERVER] Client #"<< it->fd << " deleted." << std::endl;
+ 							break ;
                         }
                         it++;
                     }
@@ -119,7 +118,7 @@ int Server::manageServerLoop() {
                     return (FAILURE);
                 }
                 else {
-                    delClient(poll_fds, it);
+                    delClient(poll_fds, it->fd);
                     if ((unsigned int)(poll_fds.size() - 1) == 0)
                         break;
                 }
