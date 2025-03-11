@@ -4,8 +4,9 @@
 
 bool			containsAtLeastOneAlphaChar(std::string str);
 std::string		getChannelName(std::string msg_to_parse);
-void			addChannel(Server *server, std::string const &channelName);
-void			addClientToChannel(Server *server, std::string &channelName, Client &client);
+void			addChannel(Server *server, std::string const &channel_name);
+void			addClientToChannel(Server *server, std::string &channel_name, Client &client);
+void			sendChanInfos(Channel &channel, std::string channel_name, Client &client);
 /**
  * @brief The JOIN command indicates that the client wants to join the given channel(s), 
  * 	each channel using the given key for it. The server receiving the command checks 
@@ -41,34 +42,49 @@ void			addClientToChannel(Server *server, std::string &channelName, Client &clie
  */
 void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 {
-	std::string channelName;
+	std::string channel_name;
 
 	while (containsAtLeastOneAlphaChar(cmd_infos.message) == true)
 	{
-		channelName.clear();
-		channelName = getChannelName(cmd_infos.message);
-		cmd_infos.message.erase(cmd_infos.message.find(channelName), channelName.length()); 
+		channel_name.clear();
+		channel_name = getChannelName(cmd_infos.message);
+		cmd_infos.message.erase(cmd_infos.message.find(channel_name), channel_name.length()); 
 
 		Client client = retrieveClient(server, client_fd);
 
 		std::map<std::string, Channel>&			 channels 	= server->getChannels();
-		std::map<std::string, Channel>::iterator it			= channels.find(channelName);
+		std::map<std::string, Channel>::iterator it			= channels.find(channel_name);
 		if (it == channels.end())
-			addChannel(server, channelName);
+			addChannel(server, channel_name);
 		std::string client_nickname = client.getNickname();
-		std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channelName);
+		std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channel_name);
 		if (it_chan->second.isBanned(client_nickname) == true) {
-			std::cout << client.getNickname() << " is banned from " << channelName << std::endl; 
+			std::cout << client.getNickname() << " is banned from " << channel_name << std::endl; 
 			return ;
 		} 
 		else {
-			addClientToChannel(server, channelName, client);
+			addClientToChannel(server, channel_name, client);
 			if (it_chan->second.getOperators().empty())
 				it_chan->second.addFirstOperator(client.getNickname());
 			
 		}
 	}
 }
+
+void		sendChanInfos(Channel &channel, std::string channel_name, Client &client)
+ {
+ 	int			client_fd	= client.getClientFd();
+ 	std::string	nick		= client.getUsername();
+ 	std::string username	= client.getNickname();
+ 	std::string	client_id	= ":" + nick + "!" + username + "@localhost";
+  	
+ 	sendServerRpl(client_fd, RPL_JOIN(username, nick, channel_name));
+ 	if (channel.getTopic().empty() == false)
+ 		sendServerRpl(client_fd, RPL_TOPIC(client_id, channel_name, channel.getTopic()));
+	// TODO: Once NAMES is implemented, send a list of users in the channel 
+	// using multiple RPL_NAMREPLY (353) messages, followed by a single RPL_ENDOFNAMES (366).
+	// The RPL_NAMREPLY messages must include the requesting client who just joined.
+ }
 
 bool		containsAtLeastOneAlphaChar(std::string str)
 {
@@ -96,30 +112,30 @@ std::string	getChannelName(std::string msg_to_parse)
 	return (channel_name);
 }
 
-void	addChannel(Server *server, std::string const &channelName)
+void	addChannel(Server *server, std::string const &channel_name)
 {
 	// check if channel already exists.
-	std::map<std::string, Channel>::iterator it = server->getChannels().find(channelName);
+	std::map<std::string, Channel>::iterator it = server->getChannels().find(channel_name);
 	if (it != server->getChannels().end())
 	{
 		std::cout << "Channel already exists, choose an other name\n";
 		return ;
 	}
-	Channel	channel(channelName);
-	server->getChannels().insert(std::pair<std::string, Channel>(channelName, channel));
-	std::cout << RED << "Channel added: " << channelName << RESET << std::endl;
+	Channel	channel(channel_name);
+	server->getChannels().insert(std::pair<std::string, Channel>(channel_name, channel));
+	std::cout << RED << "Channel added: " << channel_name << RESET << std::endl;
 }
 
-void	addClientToChannel(Server *server, std::string &channelName, Client &client)
+void	addClientToChannel(Server *server, std::string &channel_name, Client &client)
 {
 	std::map<std::string, Channel>			 channels = server->getChannels();
 	std::map<std::string, Channel>::iterator it;
-	it = channels.find(channelName);
+	it = channels.find(channel_name);
 	std::string client_nickname = client.getNickname();
 	if (it->second.doesClientExist(client_nickname) == false)
 	{
 		it->second.getClientList().insert(std::pair<std::string, Client>(client.getNickname(), client));
-		std::cout << "Client successfully joined the channel" << channelName << "!" << std::endl;
+		std::cout << "Client successfully joined the channel" << channel_name << "!" << std::endl;
 	}
 	else 
 		std::cout << YELLOW << client.getNickname() << "already here\n" << RESET;
