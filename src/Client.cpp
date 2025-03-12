@@ -3,7 +3,7 @@
 Client::Client(int client_fd)
 : _client_fd(client_fd), _connexion_password(false), _registrationDone(false), _welcomeSent(false), _hasAllInfo(false)
 {
-	std::cout << YELLOW << "Client constructor" << RESET << std::endl;
+	std::cout << YELLOW << "Client constructor for Client #" << client_fd << RESET << std::endl;
 }
 
 Client::~Client()
@@ -73,27 +73,15 @@ void	Client::printClient()const
 
 }
 
-int Client::is_valid() const {
-    std::cout << "Validating client: Nickname(" << _nickname 
-              << "), Username(" << _fullname 
-              << "), Realname(" << _realname 
-              << "), Password Set(" << _connexion_password << ")" << std::endl;
-
-    if (_fullname.empty()) {
-        std::cerr << "Validation failed: Username is empty!" << std::endl;
-        return (FAILURE);
-    }
-    if (_nickname.empty()) {
-        std::cerr << "Validation failed: Nickname is empty!" << std::endl;
-        return (FAILURE);
-    }
-    if (_realname.empty()) {
-        std::cerr << "Validation failed: Realname is empty!" << std::endl;
-        return (FAILURE);
-    }
-    if (_connexion_password == false) {
-        std::cerr << "Validation failed: Connection password not set!" << std::endl;
-        return (FAILURE);
-    }
-    return (SUCCESS);
+int	Client::is_valid() const
+{
+	if (_fullname.empty())
+		return (FAILURE);
+	if (_nickname.empty())
+		return (FAILURE);
+	if (_realname.empty())
+		return (FAILURE);
+	if (_connexion_password == false)
+		return (FAILURE);
+	return (SUCCESS);
 }

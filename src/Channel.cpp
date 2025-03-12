@@ -1,9 +1,13 @@
 #include "Channel.hpp"
 
-Channel::Channel(std::string const &channelName): _name(channelName) {}
+Channel::Channel(std::string const &channelName): _name(channelName) 
+{
+	_banned_users.clear();
+	_clientList.clear();
+	_topic.clear();
+}
 
 Channel::~Channel() {}
-
 
 std::string&						Channel::getName() 			{ return (_name); }
 std::string&						Channel::getTopic() 		{ return (_topic); }
@@ -16,17 +20,15 @@ void		Channel::setTopic(std::string& newTopic)
 	_topic = newTopic;
 }
 
-bool	Channel::doesClientExist(std::string &clientName)
-{
+bool		Channel::doesClientExist(std::string &clientName)
+{	
+	if (_clientList.size() == 0)
+		return (false);
+
 	std::map <std::string, Client>::iterator it = _clientList.find(clientName);
 	if (it == _clientList.end())
 		return (false);
 	return (true);
-}
-
-void	Channel::addClientToChannel(Client &client)
-{
-	this->_clientList.insert(std::pair<std::string, Client>(client.getNickname(), client));
 }
 
 void	Channel::printClientList()
@@ -52,6 +54,11 @@ void	Channel::removeClientFromChannel(std::string &clientName)
 	// This function checks if the ClientName is present in the Operator list
 	// and if so, deletes it.
 	removeOperator(clientName); 
+}
+
+void	Channel::addClientToChannel(Client &client)
+{
+	_clientList.insert(std::pair<std::string, Client>(client.getNickname(), client));
 }
 
 void	Channel::addToBanned(std::string &banned_name)
@@ -87,7 +94,7 @@ void	Channel::removeFromBanned(std::string &banned_name)
 bool	Channel::isBanned(std::string &banned_name)
 {
 	std::vector<std::string>::iterator user;
-	if (_banned_users.empty())
+	if (_banned_users.empty() == true)
 		return (false);
 	for (user = _banned_users.begin(); user != _banned_users.end(); user++)
 	{

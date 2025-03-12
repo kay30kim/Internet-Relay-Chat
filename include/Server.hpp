@@ -1,9 +1,9 @@
 #ifndef SERVER_HPP
 #define	SERVER_HPP
 
-#include "Channel.hpp"
 #include "Irc.hpp"
 #include "Client.hpp"
+#include "Channel.hpp"
 
 class Server
 {

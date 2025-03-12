@@ -80,7 +80,8 @@ void	topic(Server *server, int const client_fd, cmd_struct cmd_infos)
 	else
 	{
 		channel->second.setTopic(topic);
-		sendServerRpl(client_fd,  RPL_NEWTOPIC(client_nickname, channel_name, topic));
+		sendServerRpl(client_fd,  RPL_TOPIC(client_nickname, channel_name, topic));
+		// sendServerRpl(client_fd,  RPL_NEWTOPIC(client_nickname, channel_name, topic));
 	}
 }
 
@@ -95,9 +96,9 @@ std::string	findChannelName(std::string msg_to_parse)
 	std::string channel_name;
 	channel_name.clear();
 	
-	if (msg_to_parse.empty() || msg_to_parse.find("#") == msg_to_parse.npos) // Si pas d'arg ou pas de chan (#)
+	if (msg_to_parse.empty() || msg_to_parse.find("#") == msg_to_parse.npos)
 		return (channel_name);
-	else if (msg_to_parse.find(":") != msg_to_parse.npos) // Avec irssi, meme avec un mot, le client rajoute un ':'
+	else if (msg_to_parse.find(":") != msg_to_parse.npos)
 	{
 		char *str = const_cast<char *>(msg_to_parse.data());
 		channel_name = strtok(str, " ");
@@ -106,9 +107,9 @@ std::string	findChannelName(std::string msg_to_parse)
 	else
 	{
 		size_t i = 0;
-		while (!isalpha(msg_to_parse[i]))
+		while (msg_to_parse[i] && (!isalpha(msg_to_parse[i]) && !isdigit(msg_to_parse[i]) && msg_to_parse[i] != '-' && msg_to_parse[i] != '_'))
 			i++;
-		while (isalpha(msg_to_parse[i]))
+		while (msg_to_parse[i] && (isalpha(msg_to_parse[i]) || msg_to_parse[i] == '-' || msg_to_parse[i] == '_' || isdigit(msg_to_parse[i])))
 			channel_name += msg_to_parse[i++];
 	}
 	return (channel_name);

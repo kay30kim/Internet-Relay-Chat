@@ -1,8 +1,9 @@
 #include "Server.hpp"
 #include "Commands.hpp"
-#include "LagCompensation.hpp"
 
-Server::Server() : _servinfo(NULL), _server_socket_fd(0)
+// Server::Server()
+Server::Server(std::string port, std::string password)
+: _servinfo(NULL), _server_socket_fd(0) , _port(port), _password(password)
 {
 	std::cout << YELLOW << "Server Constructor" << RESET << std::endl;
 	memset(&_hints, 0, sizeof(_hints));
@@ -18,11 +19,15 @@ const char * 	Server::InvalidClientException::what (void) const throw()
 	return "The information given by the client are invalid.";
 }
 
+/**
+ * @brief Attributes the correct parameters to the structure Hints.
+ *
+ */
 void Server::setHints()
 {
-	_hints.ai_family = AF_INET;
-	_hints.ai_socktype = SOCK_STREAM;
-	_hints.ai_flags = AI_PASSIVE;
+	_hints.ai_family = AF_INET;		  // We choose Ipv4
+	_hints.ai_socktype = SOCK_STREAM; // We choose to work with TCP stream sockets
+	_hints.ai_flags = AI_PASSIVE;	  // We'll be on localhost by default
 }
 
 std::string 					Server::getPort()	  const { return (_port); }
@@ -107,8 +112,8 @@ void Server::addClient(int client_socket, std::vector<pollfd> &poll_fds)
 
 void Server::delClient(std::vector<pollfd> &poll_fds, int current_fd)
 {
-	std::cout << "Deconnection of client : " << current_fd << std::endl;
- 	int key = current_fd;
+	std::cout << "Disconnection of client : " << current_fd << std::endl;
+	int key = current_fd;
 	std::vector<pollfd>::iterator iterator;
 	for (iterator = poll_fds.begin(); iterator != poll_fds.end(); iterator++)
 	{
@@ -151,54 +156,41 @@ std::string getWelcomeReply(std::map<const int, Client>::iterator &it)
 
 std::string	cleanStr(std::string str)
 {
+	// Erase the space at the beginning of the str (i.e " marine sanjuan" must be "marine sanjuan")
 	if (str.find(' ') != std::string::npos && str.find(' ') == 0)
 		str.erase(str.find(' '), 1);
+	// Erase any Carriage Returns in the str. Note : the '\n' has already be dealt with in the function SplitMessage
 	if (str.find('\r') != std::string::npos)
 		str.erase(str.find('\r'), 1);
 	return (str);
 }
 
-void Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::string cmd) {
-    std::map<const int, Client>::iterator it = client_list.find(client_fd);
-    
-    if (it == client_list.end()) {
-        std::cerr << RED << "Client not found in list!" << RESET << std::endl;
-        return;
-    }
-
-    std::cout << "Processing command: " << cmd << std::endl;
-
-    if (cmd.find("NICK") != std::string::npos) {
-        cmd.erase(cmd.find("NICK"), 4);
-        cmd = cleanStr(cmd);
-        std::cout << "Setting nickname: " << cmd << std::endl;
-        it->second.setNickname(cmd);
-    } 
-    else if (cmd.find("USER") != std::string::npos) {
-        std::cout << "Processing USER command: " << cmd << std::endl;
-
-        std::vector<std::string> tokens;
-        std::stringstream ss(cmd);
-        std::string token;
-
-        while (ss >> token) {
-            tokens.push_back(token);
-        }
-
-        if (tokens.size() < 5) {
-            std::cerr << "Invalid USER command format!" << std::endl;
-            return;
-        }
-
-        it->second.setUsername(tokens[1]); // USER <username>
-        it->second.setRealname(tokens[4].substr(1)); // Realname starts after ':'
-
-        std::cout << "Setting username: " << it->second.getUsername() << std::endl;
-        std::cout << "Setting realname: " << it->second.getRealname() << std::endl;
-    }
-    std::cout << "Client state - Nick: " << it->second.getNickname()
-              << ", User: " << it->second.getUsername()
-              << ", Realname: " << it->second.getRealname() << std::endl;
+void Server::fillClients(std::map<const int, Client> &client_list, int client_fd, std::string cmd)
+{
+	std::map<const int, Client>::iterator it = client_list.find(client_fd);
+	
+	if (cmd.find("NICK") != std::string::npos)
+	{
+		cmd.erase(cmd.find("NICK"), 4);
+		cmd = cleanStr(cmd);
+		it->second.setNickname(cmd);
+	}
+	else if (cmd.find("USER") != std::string::npos)
+	{
+		cmd.erase(cmd.find("USER "), 5);
+		it->second.setUsername(cmd.substr(cmd.find(" "), cmd.find(" ") + 1));
+		it->second.setUsername(cleanStr(it->second.getUsername()));
+		it->second.setRealname(cmd.substr(cmd.find(":") + 1, cmd.length() - cmd.find(":") + 1));
+	}
+	else if (cmd.find("PASS") != std::string::npos)
+	{
+		cmd_struct cmd_infos;
+		parseCommand(cmd, cmd_infos);
+		if (pass(this, client_fd, cmd_infos) == SUCCESS)
+			it->second.setConnexionPassword(true);
+		else
+			it->second.setConnexionPassword(false);
+	}
 }
 
 static void splitMessage(std::vector<std::string> &cmds, std::string msg)
@@ -215,48 +207,38 @@ static void splitMessage(std::vector<std::string> &cmds, std::string msg)
 	}
 }
 
-void Server::parseMessage(int client_fd, std::string message) {
-    std::cout << "Logging message for LagCompensation: " << message << std::endl;
-    LagCompensation::getInstance().logClientMessage(client_fd, message);
+void Server::parseMessage(int const client_fd, std::string message)
+{
+	std::vector<std::string>				cmds;
+	std::map<const int, Client>::iterator	it = _clients.find(client_fd);
 
-    std::vector<std::string> cmds;
-    std::deque<TickRecord> valid_msgs = LagCompensation::getInstance().getValidMessages(client_fd);
+	splitMessage(cmds, message);
 
-    std::cout << "Valid messages count: " << valid_msgs.size() << std::endl;
-
-    for (const auto& record : valid_msgs) {
-        std::cout << "Processing message: " << record.message << std::endl;
-        splitMessage(cmds, record.message);
-    }
-
-    std::map<const int, Client>::iterator it = _clients.find(client_fd);
-    if (it == _clients.end()) {
-        std::cerr << RED << "Client not found" << RESET << std::endl;
-        return;
-    }
-
-    for (size_t i = 0; i < cmds.size(); i++) {
-        std::cout << "Processing command: " << cmds[i] << std::endl;
-        if (!it->second.isRegistrationDone()) {
-            if (!it->second.hasAllInfo()) {
-                fillClients(_clients, client_fd, cmds[i]);
-                if (cmds[i].find("USER") != std::string::npos) {
-                    it->second.hasAllInfo() = true;
-                }
-            }
-            if (it->second.hasAllInfo() && !it->second.isWelcomeSent()) {
-                if (it->second.is_valid() == SUCCESS) {
-                    send(client_fd, getWelcomeReply(it).c_str(), getWelcomeReply(it).size(), 0);
-                    it->second.isWelcomeSent() = true;
-                    it->second.isRegistrationDone() = true;
-                } else {
-                    throw Server::InvalidClientException();
-                }
-            }
-        } else {
-            execCommand(client_fd, cmds[i]);
-        }
-    }
+	for (size_t i = 0; i != cmds.size(); i++)
+	{
+		if (it->second.isRegistrationDone() == false)
+		{
+			if (it->second.hasAllInfo() == false)
+			{
+				fillClients(_clients, client_fd, cmds[i]);
+				if (cmds[i].find("USER") != std::string::npos)
+					it->second.hasAllInfo() = true;
+			}
+			if (it->second.hasAllInfo() == true && it->second.isWelcomeSent() == false)
+			{
+				if (it->second.is_valid() == SUCCESS)
+				{
+					send(client_fd, getWelcomeReply(it).c_str(), getWelcomeReply(it).size(), 0);
+					it->second.isWelcomeSent() = true;
+					it->second.isRegistrationDone() = true;
+				}		
+				else
+					throw Server::InvalidClientException();
+			}
+		}
+		else
+			execCommand(client_fd, cmds[i]);
+	}
 }
 
 void Server::execCommand(int const client_fd, std::string cmd_line)
@@ -268,6 +250,7 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 		"KILL",
 		"LIST",
 		"MODE",
+		"NAMES",
 		"NICK",
 		"PART",
 		"PING",
@@ -276,9 +259,6 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 		"QUIT",
 		"TOPIC",
 		"USER",
-		"WHO",
-		"WHOIS",
-		"WHOWAS"
 		};
 
 	cmd_struct cmd_infos;
@@ -300,18 +280,16 @@ void Server::execCommand(int const client_fd, std::string cmd_line)
 	// case 3: kick(this, cmd_infos); break;
 	// case 4: kill(cmd_infos); break;
 	case 5: list(this, client_fd, cmd_infos); break;
-	// case 6: mode(cmd_infos); break;
-	case 7: nick(this, client_fd, cmd_infos); break;
-	// case 8: part(cmd_infos); break;
-	case 9: ping(client_fd, cmd_infos); break;
-	// case 10: oper(this, cmd_infos); break;
-  // case 11: privmsg(cmd_infos); break;
-	// case 12: quit(this, cmd_infos); break;
-	case 13: topic(this, client_fd, cmd_infos); break;
-	// case 14: user(cmd_infos); break;
-	// case 15: who(cmd_infos); break;
-	// case 16: whois(cmd_infos); break;
-	// case 17: whowas(cmd_infos); break;
+	// case 6: mode(this, client_fd, cmd_infos); break;
+	case 7: names(this, client_fd, cmd_infos); break;
+	case 8: nick(this, client_fd, cmd_infos); break;
+	case 9: part(this, client_fd, cmd_infos); break;
+	case 10: ping(client_fd, cmd_infos); break;
+	// case 11: oper(this, cmd_infos); break;
+  	// case 12: privmsg(cmd_infos); break;
+	// case 13: quit(this, cmd_infos); break;
+	case 14: topic(this, client_fd, cmd_infos); break;
+	// case 15: user(cmd_infos); break;
 	default:
 		std::cout << PURPLE << "This command is not supported by our services." << RESET << std::endl;
 	}

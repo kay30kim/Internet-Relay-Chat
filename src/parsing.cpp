@@ -8,7 +8,7 @@ int	parseCommand(std::string cmd_line, cmd_struct &cmd_infos)
 	{
 		if (isupper(cmd_line[i]))
 			cmd_infos.name.push_back(cmd_line[i]);
-		if (islower(cmd_line[i]) && cmd_infos.name.empty() == false)
+		if (!(isupper(cmd_line[i])) && cmd_infos.name.empty() == false)
 			break;
 	}
 	
@@ -19,6 +19,7 @@ int	parseCommand(std::string cmd_line, cmd_struct &cmd_infos)
 	// MESSAGE
 	size_t msg_beginning = cmd_line.find(cmd_infos.name, 0) + cmd_infos.name.length();
 	cmd_infos.message = cmd_line.substr(msg_beginning, std::string::npos);
+	cmd_infos.message.erase(cmd_infos.message.find("\r"), 1);
 
 	// DEBUG
 	std::cout << "Command : " << RED << cmd_infos.name << RESET << std::endl;
