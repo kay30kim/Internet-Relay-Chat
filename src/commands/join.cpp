@@ -89,8 +89,8 @@ void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 void		sendChanInfos(Channel &channel, std::string channel_name, Client &client)
 {
 	int			client_fd	= client.getClientFd();
-	std::string	nick		= client.getUsername();
-	std::string username	= client.getNickname();
+	std::string	nick		= client.getNickname();
+ 	std::string username	= client.getUsername();
 	std::string	client_id	= ":" + nick + "!" + username + "@localhost";
  	
 	sendServerRpl(client_fd, RPL_JOIN(username, nick, channel_name));

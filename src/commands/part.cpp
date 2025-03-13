@@ -57,8 +57,8 @@ void				part(Server *server, int const client_fd, cmd_struct cmd_infos)
 		else // c) if successful command
 		{
 			it->second.getClientList().erase(nick);
-			sendServerRpl(client_fd, RPL_PART(client.getUsername(), nick, channel, reason));
-			broadcastToAllChannelMembers(it->second, client.getUsername(), nick, reason);
+			sendServerRpl(client_fd, RPL_PART(user_id(nick, client.getUsername()), channel, reason));
+ 			broadcastToAllChannelMembers(it->second, client.getUsername(), nick, reason);
 		}
 	}
 }
@@ -91,7 +91,7 @@ static void			broadcastToAllChannelMembers(Channel &channel, std::string user, s
 	while (member != channel.getClientList().end())
 	{
 		sendServerRpl(member->second.getClientFd(),	\
-			RPL_PART(user, nick, channel.getName(), reason));
+			RPL_PART(user_id(nick, user), channel.getName(), reason));
 		member++;
 	}
 }
