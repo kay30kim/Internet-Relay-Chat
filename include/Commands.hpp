@@ -20,6 +20,7 @@ std::string	getListOfMembers(Channel &channel);
 std::string	getChannelName(std::string msg_to_parse);
 std::string	findNickname(std::string msg_to_parse);
 bool		isAlreadyUsed(Server *server, int client_fd, std::string new_nickname);
+std::string	getReason(std::string msg_to_parse);
 
 // void	ban(Server server, cmd_struct cmd_infos);
 void	invite(Server *server, int const client_fd, cmd_struct cmd_infos);
@@ -32,7 +33,7 @@ void	nick(Server *server, int const client_fd, cmd_struct cmd_infos);
 int		pass(Server *server, int const client_fd, cmd_struct cmd_infos);
 void	part(Server *server, int const client_fd, cmd_struct cmd_infos);
 int		ping(int const client_fd, cmd_struct &cmd);
-// void	quit(Server server, cmd_struct cmd_infos);
+void	quit(Server *server, int const client_fd, cmd_struct cmd_infos);
 void	topic(Server *server, int const client_fd, cmd_struct cmd_infos);
 // void	unban(Server server, cmd_struct cmd_infos);
 

@@ -1,6 +1,7 @@
 #include "Irc.hpp"
 #include "Channel.hpp"
 #include "Server.hpp"
+#include "Commands.hpp"
 
 /**
  * @brief The OPER command is used by a normal user to obtain IRC operator privileges.

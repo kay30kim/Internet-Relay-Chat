@@ -15,23 +15,11 @@
  * 
  *  Source: https://modern.ircdocs.horse/#quit-message
  */
-void	quit(Server server, cmd_struct cmd_infos)
+void	quit(Server *server, int const client_fd, cmd_struct cmd_infos)
 {
-	// TODO: Implement command message parsing to extract channelName and clientName
-	std::string channelName;
-	std::string clientName;
-
-	std::map<std::string, Channel>			 channels = server.getChannels();
-	std::map<std::string, Channel>::iterator it;
-	it = channels.find(channelName);
-	if (it == channels.end())
-	{
-		std::cout << "Channel not found\n";
-		return ;
-	}
-	if (it->second.doesClientExist(clientName) == true)
-	{
-		it->second.removeClientFromChannel(clientName);
-		std::cout << clientName << " has now left " << channelName << std::endl; 
-	}
+	Client 		&client = retrieveClient(server, client_fd);
+ 	std::string	reason	= getReason(cmd_infos.message);
+ 
+ 	sendServerRpl(client_fd, RPL_ERROR(user_id(client.getNickname(), client.getUsername()), reason));
+ 	sendServerRpl(client_fd, RPL_QUIT(user_id(client.getNickname(), client.getUsername()), reason));
 }

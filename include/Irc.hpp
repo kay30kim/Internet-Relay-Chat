@@ -18,7 +18,7 @@
 # include "Macro.hpp"
 # include "Colors.hpp"
 # include "Numerical_replies.hpp"
-# include "Commands.hpp"
+// # include "Commands.hpp"
 // #include "Server.hpp"
 
 #endif
