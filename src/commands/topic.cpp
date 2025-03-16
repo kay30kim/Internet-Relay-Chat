@@ -5,6 +5,7 @@
 
 std::string	findChannelName(std::string msg_to_parse);
 std::string	findTopic(std::string msg_to_parse);
+static void	broadcastToChannel(Server *server, Channel &channel, Client &client, std::string kicked, std::string reason);
 
 /**
  * @brief Command : TOPIC <channel> [<topic>]
@@ -44,23 +45,20 @@ void	topic(Server *server, int const client_fd, cmd_struct cmd_infos)
 	channel_name = findChannelName(cmd_infos.message);
 	if (channel_name.empty())
 	{
-		sendServerRpl(client_fd, ERR_NEEDMOREPARAMS(client_nickname, cmd_infos.name));
+		addToClientBuffer(server, client_fd, ERR_NEEDMOREPARAMS(client_nickname, cmd_infos.name));
 		return ;
 	}
 
 	std::map<std::string, Channel>&			 channels = server->getChannels();
 	std::map<std::string, Channel>::iterator channel = channels.find(channel_name);
-
 	if (channel == channels.end())
 	{
-		sendServerRpl(client_fd, ERR_NOSUCHCHANNEL(client_nickname, channel_name));
+		addToClientBuffer(server, client_fd, ERR_NOSUCHCHANNEL(client_nickname, channel_name));
 		return ;
 	}
-
 	if (channel->second.doesClientExist(client_nickname) == false)
 	{
-		std::cout << "You are not on the channel you want to see to the topic of." << std::endl;
-		sendServerRpl(client_fd, ERR_NOTONCHANNEL(client_nickname, channel_name));
+		addToClientBuffer(server, client_fd, ERR_NOTONCHANNEL(client_nickname, channel_name));
 		return ;
 	}
 
@@ -68,21 +66,26 @@ void	topic(Server *server, int const client_fd, cmd_struct cmd_infos)
 	
 	if (topic.empty())
 	{
-		sendServerRpl(client_fd,  RPL_TOPIC(client_nickname, channel_name, channel->second.getTopic()));
-		std::cout << "The topic of this channel is " << channel->second.getTopic() << std::endl;
-	}
-	else if (topic == ":")
-	{
-		topic.clear();
-		channel->second.setTopic(topic);
-		sendServerRpl(client_fd,  RPL_NOTOPIC(client_nickname, channel_name));
+		if (channel->second.getTopic().empty() == false)
+			addToClientBuffer(server, client_fd, RPL_TOPIC(client_nickname, channel_name, channel->second.getTopic()));
+		else
+			addToClientBuffer(server, client_fd, RPL_NOTOPIC(client_nickname, channel_name));
 	}
 	else
 	{
-		channel->second.setTopic(topic);
-		sendServerRpl(client_fd,  RPL_TOPIC(client_nickname, channel_name, topic));
-		// sendServerRpl(client_fd,  RPL_NEWTOPIC(client_nickname, channel_name, topic));
+		if (channel->second.getMode().find('t') != std::string::npos \
+			&& channel->second.isOperator(client_nickname) == false)
+			addToClientBuffer(server, client_fd, ERR_CHANOPRIVSNEEDED(client_nickname, channel_name));
+		else
+		{
+			if (topic == ":")
+				topic.clear();
+			channel->second.setTopic(topic);
+			broadcastToChannel(server, channel->second, client, channel_name, topic);
+		}
+		
 	}
+
 }
 
 // Possible output : | #test :New topic|
@@ -125,7 +128,18 @@ std::string	findTopic(std::string msg_to_parse)
 	else
 	{
 		topic.append(msg_to_parse, msg_to_parse.find(":"), std::string::npos);
-		std::cout << "The topic is : " << topic << std::endl;
 	}
 	return (topic);
+}
+
+static void	broadcastToChannel(Server *server, Channel &channel, Client &client, std::string channel_name, std::string topic)
+{
+	std::map<std::string, Client>::iterator member = channel.getClientList().begin();
+	std::string								client_nickname = client.getNickname();
+	
+	while (member != channel.getClientList().end())
+	{
+		addToClientBuffer(server, member->second.getClientFd(), RPL_TOPIC(client_nickname, channel_name, topic));
+		member++;
+	}
 }

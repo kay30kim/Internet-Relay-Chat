@@ -3,6 +3,9 @@
 #include "Server.hpp"
 #include "Commands.hpp"
 
+static std::string	getKickedName(std::string msg_to_parse);
+static void			broadcastToChannel(Server *server, Channel &channel, Client &client, std::string kicked, std::string reason);
+
 /**
  * @brief The KICK command can be used to request the forced removal of a user 
  *  from a channel. It causes the <user> to be removed from the <channel> by force. 
@@ -23,29 +26,85 @@
  * 
  * Server's Response: " Command to kick John from #Finnish using "Speaking English" 
  * 						as the reason (comment)."
- *                                  
- * @param server 
+ *
+ * @param server
  * @param cmd_infos Structure w/ prefix, command name and message
  */
-void	kick(Server server, cmd_struct cmd_infos)
+void				kick(Server *server, int const client_fd, cmd_struct cmd_infos)
 {
-	// TODO: Implement parsing of command.message to extract operator name, channelName, and clientName
-	std::string operator_name;
-	std::string channel_name;
-	std::string client_name;
+	Client& 	requester		= retrieveClient(server, client_fd);
+	std::string	requester_name	= requester.getNickname();
+	std::string	channel_name	= getChannelName(cmd_infos.message);
+	std::string	kicked_name		= getKickedName(cmd_infos.message);
+	std::string	reason			= getReason(cmd_infos.message);
 
-	std::map<std::string, Channel>::iterator it;
-	it = server.getChannels().find(channel_name); // TODO: Handle the case where the channel does not exist
-	if (it->second.doesClientExist(client_name) == true)
+	std::map<std::string, Channel>&			 channels 	= server->getChannels();
+	std::map<std::string, Channel>::iterator it_chan	= channels.find(channel_name);
+
+	reason = (reason.empty()) ? ":Kicked by the channel's operator" : reason;
+
+	// DEBUG
+	std::cout << "Requester : |" << requester_name << "|" << std::endl;
+	std::cout << "Reason : |" << reason << "|" << std::endl;
+	std::cout << "Kicked : |" << kicked_name << "|" << std::endl;
+
+	if (channel_name.empty() || kicked_name.empty())
 	{
-		if (it->second.isOperator(operator_name) == false)
-		{
-			std::cout << "[ERR 482] " << operator_name << " is not an operator on " << channel_name << std::endl;
-			return ;
-		}
-		it->second.removeClientFromChannel(client_name);
-		std::cout << client_name << " has been kicked from " << channel_name << " by " << operator_name << std::endl; 
+		addToClientBuffer(server, client_fd, ERR_NEEDMOREPARAMS(requester_name, cmd_infos.name));
+		// sendServerRpl(client_fd, ERR_NEEDMOREPARAMS(requester_name, cmd_infos.name));
+		return ;
 	}
-	// TODO: Handle ERR 441, 442 if the user is not in the channel or does not exist
-	// NOTE: We print the output of our action on the server side, but we should also SEND a message to the client
+	else if (it_chan == channels.end())
+	{
+		addToClientBuffer(server, client_fd, ERR_NOSUCHCHANNEL(requester_name, channel_name));
+		// sendServerRpl(client_fd, ERR_NOSUCHCHANNEL(requester_name, channel_name));
+		return ;
+	}
+	else if (it_chan->second.doesClientExist(requester_name) == false)
+	{
+		addToClientBuffer(server, client_fd, ERR_NOTONCHANNEL(requester_name, channel_name));
+		// sendServerRpl(client_fd, ERR_NOTONCHANNEL(requester_name, channel_name));
+		return ;
+	}
+	else if (it_chan->second.doesClientExist(kicked_name) == false)
+	{
+		addToClientBuffer(server, client_fd, ERR_USERNOTINCHANNEL(requester_name, kicked_name, channel_name));
+		// sendServerRpl(client_fd, ERR_USERNOTINCHANNEL(requester_name, kicked_name, channel_name));
+		return ;
+	}
+	else if (it_chan->second.isOperator(requester_name) == false) // you're not a channel operator
+	{
+		addToClientBuffer(server, client_fd, ERR_CHANOPRIVSNEEDED(requester_name, channel_name));
+		// sendServerRpl(client_fd, ERR_CHANOPRIVSNEEDED(requester_name, channel_name));
+		return ;
+	}
+	else
+	{
+		it_chan->second.getClientList().erase(kicked_name);
+		it_chan->second.addToKicked(kicked_name);
+		broadcastToChannel(server, it_chan->second, requester, kicked_name, reason);
+	}
+}
+
+static std::string	getKickedName(std::string msg_to_parse)
+{
+	std::string kicked;
+
+	if (msg_to_parse[0] == ' ')
+		msg_to_parse.erase(0, 1);
+	kicked = msg_to_parse.substr(msg_to_parse.find(' ') + 1, (msg_to_parse.find(':') - 1 - (msg_to_parse.find(' ') + 1)));
+	return (kicked);
+
+}
+
+static void			broadcastToChannel(Server *server, Channel &channel, Client &client, std::string kicked, std::string reason)
+{
+	std::map<std::string, Client>::iterator member = channel.getClientList().begin();
+	
+	while (member != channel.getClientList().end())
+	{
+		addToClientBuffer(server, member->second.getClientFd(), \
+			RPL_KICK(user_id(client.getNickname(), client.getUsername()), channel.getName(), kicked, reason));
+		member++;
+	}
 }

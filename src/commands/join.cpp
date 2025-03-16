@@ -7,7 +7,7 @@ bool			containsAtLeastOneAlphaChar(std::string str);
 std::string		retrieveKey(std::string msg_to_parse);
 void			addChannel(Server *server, std::string const &channelName);
 void			addClientToChannel(Server *server, std::string &channelName, Client &client);
-void			sendChanInfos(Channel &channel, std::string channel_name, Client &client);
+void			sendChanInfos(Server *server, Channel &channel, std::string channel_name, Client &client);
 /**
  * @brief The JOIN command indicates that the client wants to join the given channel(s), 
  * 	each channel using the given key for it. The server receiving the command checks 
@@ -48,14 +48,14 @@ void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 	std::string	channel_name;
 
 	if (containsAtLeastOneAlphaChar(cmd_infos.message) == false)
-		sendServerRpl(client_fd, ERR_NEEDMOREPARAMS(client_nickname, cmd_infos.name));
+		addToClientBuffer(server, client_fd, ERR_NEEDMOREPARAMS(client_nickname, cmd_infos.name));
 	while (containsAtLeastOneAlphaChar(cmd_infos.message) == true)
 	{
 		channel_name.clear();
 		channel_name = getChannelName(cmd_infos.message);
 
 		cmd_infos.message.erase(cmd_infos.message.find(channel_name), channel_name.length()); 
-		
+
 		std::map<std::string, Channel>&			 channels 	= server->getChannels();
 		std::map<std::string, Channel>::iterator it			= channels.find(channel_name);
 		if (it == channels.end())
@@ -65,14 +65,14 @@ void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
 
 		std::map<std::string, Channel>::iterator it_chan = server->getChannels().find(channel_name);
 		if (it_chan->second.isBanned(client_nickname) == true) {
-			sendServerRpl(client_fd, ERR_BANNEDFROMCHAN(client_nickname, channel_name));
+			addToClientBuffer(server, client_fd, ERR_BANNEDFROMCHAN(client_nickname, channel_name));
+			// sendServerRpl(client_fd, ERR_BANNEDFROMCHAN(client_nickname, channel_name));
 		} 
 		else {
 			addClientToChannel(server, channel_name, client);
 			if (it_chan->second.getOperators().empty())
 				it_chan->second.addFirstOperator(client.getNickname());
-			
-			sendChanInfos(it_chan->second, channel_name, client);
+			sendChanInfos(server, it_chan->second, channel_name, client);
 		}
 	}
 	
@@ -86,24 +86,31 @@ void	join(Server *server, int const client_fd, cmd_struct cmd_infos)
  * 	3) The NAMES of the users in this channel
  *  
  */
-void		sendChanInfos(Channel &channel, std::string channel_name, Client &client)
+void		sendChanInfos(Server *server, Channel &channel, std::string channel_name, Client &client)
 {
-	int			client_fd	= client.getClientFd();
+	// int			client_fd	= client.getClientFd();
 	std::string	nick		= client.getNickname();
- 	std::string username	= client.getUsername();
+	std::string username	= client.getUsername();
 	std::string	client_id	= ":" + nick + "!" + username + "@localhost";
  	
-	sendServerRpl(client_fd, RPL_JOIN(username, nick, channel_name));
-	if (channel.getTopic().empty() == false)
+	std::map<std::string, Client>::iterator member = channel.getClientList().begin();
+
+	while (member != channel.getClientList().end())
 	{
-		sendServerRpl(client_fd, RPL_TOPIC(client_id, channel_name, channel.getTopic()));
-		sendServerRpl(client_fd, RPL_DISPLAYTOPIC(client_id, channel_name));
+		addToClientBuffer(server, member->second.getClientFd(), RPL_JOIN(user_id(nick, username), channel_name));
+		if (channel.getTopic().empty() == false)
+		{
+			client_id	= ":" + member->second.getNickname() + "!" + member->second.getUsername() + "@localhost";
+			addToClientBuffer(server, member->second.getClientFd(), RPL_TOPIC(nick, channel_name, channel.getTopic()));
+		}
+		
+		std::string	list_of_members = getListOfMembers(nick, channel);
+		std::string symbol			= "=";
+
+		addToClientBuffer(server, member->second.getClientFd(), RPL_NAMREPLY(username, symbol, channel_name, list_of_members));
+		addToClientBuffer(server, member->second.getClientFd(), RPL_ENDOFNAMES(username, channel_name));
+		member++;
 	}
-	
-	std::string	list_of_members = getListOfMembers(channel);
-	std::string symbol			= "=";
-	sendServerRpl(client_fd, RPL_NAMREPLY(username, symbol, channel_name, list_of_members));
-	sendServerRpl(client_fd, RPL_ENDOFNAMES(username, channel_name));
 }
 
 bool		containsAtLeastOneAlphaChar(std::string str)
@@ -128,13 +135,12 @@ std::string	retrieveKey(std::string msg_to_parse)
 {
 	std::cout << "[RKey] The msg_to_parse looks like this : |" << msg_to_parse << "|" << std::endl;
 	// Expected output 2 : | #,#bar fubar_75,foobar| 
-
 	std::string	key;
 
 	if (msg_to_parse[0] == ' ')
 		msg_to_parse.erase(0, 1); // Expected output : |#f,#bar fubar_75,foobar|
 	
-	int	begin_pos = msg_to_parse.find(" ") + 1;
+	int	begin_pos = msg_to_parse.find(" ") + 1; // Expected: begin |fubar_75,foobar|
 	while (msg_to_parse[begin_pos] || msg_to_parse[begin_pos] != ',')
 	{
 		key += msg_to_parse[begin_pos];
