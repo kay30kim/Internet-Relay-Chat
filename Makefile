@@ -3,7 +3,9 @@ CXXFLAGS = -Wall -Wextra -MMD -MP -g3 -std=c++98 -I$(INC_DIR)
 
 SRC_DIR = src
 CMD_DIR = src/commands
-SRCS = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(CMD_DIR)/*.cpp)
+CLASS_DIR = src/class
+
+SRCS = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(CMD_DIR)/*.cpp) $(wildcard $(CLASS_DIR)/*.cpp)
 INC_DIR = include
 OBJ_DIR = obj
 
@@ -22,9 +24,16 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Ensure obj directory exists
+$(OBJ_DIR)/%.o: $(CMD_DIR)/%.cpp | $(OBJ_DIR)
+	mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(CLASS_DIR)/%.cpp | $(OBJ_DIR)
+	mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 $(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
+	mkdir -p $(OBJ_DIR) $(OBJ_DIR)/commands $(OBJ_DIR)/class
 
 clean:
 	rm -rf $(OBJ_DIR) $(TARGET) client
