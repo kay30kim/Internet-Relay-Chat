@@ -4,11 +4,13 @@
 #include <sys/time.h>
 #include <atomic>
 #include <unistd.h>
-#include <pthread.h>
+#include <sys/syscall.h>
 
-// Mutex and condition variable for synchronization
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+#ifdef __linux__
+#include <linux/futex.h>
+#else
+#include <pthread.h>
+#endif
 
 // Singleton instance retrieval
 LagCompensation& LagCompensation::getInstance() {
@@ -19,32 +21,45 @@ LagCompensation& LagCompensation::getInstance() {
 // Returns the current time in seconds
 double LagCompensation::getCurrentTime() {
     using namespace std::chrono;
-    return duration_cast<duration<double> > (steady_clock::now().time_since_epoch()).count();
+    return duration_cast<duration<double>>(steady_clock::now().time_since_epoch()).count();
 }
 
-// Mutex-based wait function
-void mutex_wait(std::atomic<int>& futex_var, int expected) {
+#ifdef __linux__
+// Helper function for futex wait
+void LagCompensation::futex_wait(std::atomic<int>& futex_var, int expected) {
+    syscall(SYS_futex, &futex_var, FUTEX_WAIT, expected, nullptr, nullptr, 0);
+}
+
+// Helper function for futex wake
+void LagCompensation::futex_wake(std::atomic<int>& futex_var) {
+    syscall(SYS_futex, &futex_var, FUTEX_WAKE, 1);
+}
+#else
+// macOS alternative using pthread
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+void LagCompensation::futex_wait(std::atomic<int>& futex_var, int expected) {
     pthread_mutex_lock(&mutex);
-    (void)futex_var;
-    while (futex_var.load(std::memory_order_acquire) == expected) {
+    while (futex_var.load() == expected) {
         pthread_cond_wait(&cond, &mutex);
     }
     pthread_mutex_unlock(&mutex);
 }
 
-// Mutex-based wake function
-void mutex_wake(std::atomic<int>& futex_var) {
+void LagCompensation::futex_wake(std::atomic<int>& futex_var) {
     pthread_mutex_lock(&mutex);
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
 }
+#endif
 
-// Logs client messages with mutex synchronization
+// Logs client messages with futex/mutex synchronization
 void LagCompensation::logClientMessage(int client_fd, const std::string& message) {
     static std::atomic<int> futex_var(0);
     
     while (futex_var.exchange(1, std::memory_order_acquire) != 0) {
-        mutex_wait(futex_var, 1);
+        futex_wait(futex_var, 1);
     }
     
     double timestamp = getCurrentTime();
@@ -58,7 +73,7 @@ void LagCompensation::logClientMessage(int client_fd, const std::string& message
     clearOldRecords();
     
     futex_var.store(0, std::memory_order_release);
-    mutex_wake(futex_var);
+    futex_wake(futex_var);
 }
 
 // Retrieves valid messages (only those within 200ms)
@@ -66,7 +81,7 @@ std::deque<TickRecord> LagCompensation::getValidMessages(int client_fd) {
     static std::atomic<int> futex_var(0);
     
     while (futex_var.exchange(1, std::memory_order_acquire) != 0) {
-        mutex_wait(futex_var, 1);
+        futex_wait(futex_var, 1);
     }
     
     std::deque<TickRecord> valid_msgs;
@@ -74,7 +89,7 @@ std::deque<TickRecord> LagCompensation::getValidMessages(int client_fd) {
     
     if (message_logs.find(client_fd) == message_logs.end()) {
         futex_var.store(0, std::memory_order_release);
-        mutex_wake(futex_var);
+        futex_wake(futex_var);
         return valid_msgs;
     }
     
@@ -85,7 +100,7 @@ std::deque<TickRecord> LagCompensation::getValidMessages(int client_fd) {
     }
     
     futex_var.store(0, std::memory_order_release);
-    mutex_wake(futex_var);
+    futex_wake(futex_var);
     return valid_msgs;
 }
 
@@ -94,11 +109,11 @@ void LagCompensation::clearOldRecords() {
     static std::atomic<int> futex_var(0);
     
     while (futex_var.exchange(1, std::memory_order_acquire) != 0) {
-        mutex_wait(futex_var, 1);
+        futex_wait(futex_var, 1);
     }
     
     double current_time = getCurrentTime();
-    for (std::map<int, std::deque<TickRecord> >::iterator it = message_logs.begin(); it != message_logs.end(); ++it) {
+    for (auto it = message_logs.begin(); it != message_logs.end(); ++it) {
         std::deque<TickRecord>& logs = it->second;
         while (!logs.empty() && current_time - logs.front().timestamp > 1.0) {
             logs.pop_front();
@@ -106,7 +121,7 @@ void LagCompensation::clearOldRecords() {
     }
     
     futex_var.store(0, std::memory_order_release);
-    mutex_wake(futex_var);
+    futex_wake(futex_var);
 }
 
 // Processes client messages with lag compensation and sends them to the server
