@@ -1,61 +1,172 @@
 #include <iostream>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <cstring>
-#include <chrono>
+#include <string>
 #include <thread>
+#include <vector>
+#include <cstring>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-#define PORT 6667
-#define BUFFER_SIZE 1024
+using namespace std;
 
-int main() {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1) {
-        std::cerr << "Socket creation failed" << std::endl;
-        return 1;
-    }
+// Server Configuration
+const string SERVER_IP = "127.0.0.1"; // Replace with actual IRC server IP
+const int SERVER_PORT = 6667;
+const string NICKNAME = "MyClient";  // Change as needed
+const string CHANNEL = "#mychannel"; // Default channel to join
 
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(PORT);
-    inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+// Global socket for communication
+int clientSocket;
 
-    if (connect(sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        std::cerr << "Failed to connect to the server" << std::endl;
-        return 1;
-    }
-
-    std::cout << "Client1 connected to the server" << std::endl;
-
-    std::string cap_ls_cmd = "CAP LS\r\n";
-    std::string nick_cmd = "NICK kay1\r\n";
-    std::string user_cmd = "USER kyungho1 0 * :Kyungho Kim1\r\n";
-
-    send(sock, cap_ls_cmd.c_str(), cap_ls_cmd.length(), 0);
-    send(sock, nick_cmd.c_str(), nick_cmd.length(), 0);
-    send(sock, user_cmd.c_str(), user_cmd.length(), 0);
-
-    char buffer[BUFFER_SIZE] = {0};
-    int bytesReceived = recv(sock, buffer, BUFFER_SIZE, 0);
-    if (bytesReceived > 0) {
-        std::cout << "Server response: " << buffer << std::endl;
-    }
-
-    for (int i = 0; i < 30; i++) {
-        std::string message = "PRIVMSG kay2 :Hello from Client1 - Message " + std::to_string(i+1) + "\r\n";
-        send(sock, message.c_str(), message.length(), 0);
-        std::cout << "Client1 Sent: " << message;
-
+// Function to receive messages from the server
+void receiveMessages() {
+    char buffer[2048];
+    while (true) {
         memset(buffer, 0, sizeof(buffer));
-        bytesReceived = recv(sock, buffer, BUFFER_SIZE, 0);
-        if (bytesReceived > 0) {
-            std::cout << "Client1 received: " << buffer << std::endl;
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived <= 0) {
+            cout << "Disconnected from server." << endl;
+            close(clientSocket);
+            exit(0);
+        }
+        string message(buffer);
+        
+        // Handling PING message from the server
+        if (message.find("PING") != string::npos) {
+            string response = "PONG " + message.substr(5) + "\r\n";
+            send(clientSocket, response.c_str(), response.length(), 0);
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        cout << message;
+    }
+}
+
+// Function to send commands to the server
+void sendCommand(const string& command) {
+    string msg = command + "\r\n";
+    send(clientSocket, msg.c_str(), msg.length(), 0);
+}
+
+int main() {
+    // Create socket
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == -1) {
+        cerr << "Socket creation failed." << endl;
+        return -1;
     }
 
-    close(sock);
+    // Server address setup
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(SERVER_PORT);
+    inet_pton(AF_INET, SERVER_IP.c_str(), &serverAddr.sin_addr);
+
+    // Connect to server
+    if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
+        cerr << "Connection failed." << endl;
+        return -1;
+    }
+
+    cout << "Connected to IRC server." << endl;
+
+    // Send IRC commands to register
+    sendCommand("NICK " + NICKNAME);
+    sendCommand("USER " + NICKNAME + " 0 * :" + NICKNAME);
+
+    // Start receiving messages in a separate thread
+    thread recvThread(receiveMessages);
+    recvThread.detach();
+
+    // Command loop
+    while (true) {
+        cout << "\n====== IRC Client Menu ======" << endl;
+        cout << "1. JOIN Channel" << endl;
+        cout << "2. INVITE User" << endl;
+        cout << "3. KICK User" << endl;
+        cout << "4. Send Message (PRIVMSG)" << endl;
+        cout << "5. QUIT Server" << endl;
+        cout << "6. WHO List" << endl;
+        cout << "7. Change TOPIC" << endl;
+        cout << "8. Set MODE" << endl;
+        cout << "9. LIST Channels" << endl;
+        cout << "10. Show NAMES" << endl;
+        cout << "0. Exit" << endl;
+        cout << "Select an option: ";
+        
+        int choice;
+        cin >> choice;
+        cin.ignore(); // Clear newline character
+
+        string input, user, message;
+
+        switch (choice) {
+            case 1: // JOIN
+                cout << "Enter channel to join: ";
+                getline(cin, input);
+                sendCommand("JOIN " + input);
+                break;
+
+            case 2: // INVITE
+                cout << "Enter username to invite: ";
+                getline(cin, user);
+                sendCommand("INVITE " + user + " " + CHANNEL);
+                break;
+
+            case 3: // KICK
+                cout << "Enter username to kick: ";
+                getline(cin, user);
+                cout << "Enter reason: ";
+                getline(cin, message);
+                sendCommand("KICK " + CHANNEL + " " + user + " :" + message);
+                break;
+
+            case 4: // PRIVMSG (Send Message)
+                cout << "Enter recipient (user or channel): ";
+                getline(cin, user);
+                cout << "Enter message: ";
+                getline(cin, message);
+                sendCommand("PRIVMSG " + user + " :" + message);
+                break;
+
+            case 5: // QUIT
+                cout << "Enter quit message: ";
+                getline(cin, message);
+                sendCommand("QUIT :" + message);
+                close(clientSocket);
+                return 0;
+
+            case 6: // WHO
+                sendCommand("WHO " + CHANNEL);
+                break;
+
+            case 7: // TOPIC
+                cout << "Enter new topic: ";
+                getline(cin, message);
+                sendCommand("TOPIC " + CHANNEL + " :" + message);
+                break;
+
+            case 8: // MODE
+                cout << "Enter mode command: ";
+                getline(cin, message);
+                sendCommand("MODE " + CHANNEL + " " + message);
+                break;
+
+            case 9: // LIST Channels
+                sendCommand("LIST");
+                break;
+
+            case 10: // NAMES
+                sendCommand("NAMES " + CHANNEL);
+                break;
+
+            case 0: // Exit
+                cout << "Exiting program." << endl;
+                close(clientSocket);
+                return 0;
+
+            default:
+                cout << "Invalid selection. Try again." << endl;
+        }
+    }
+
     return 0;
 }
