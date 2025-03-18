@@ -1,5 +1,5 @@
 CXX = c++
-CXXFLAGS = -Wall -Wextra -MMD -MP -g3 -std=c++98 -I$(INC_DIR)
+CXXFLAGS = -Wall -Wextra -MMD -MP -g3 -std=c++11 -I$(INC_DIR)
 
 SRC_DIR = src
 CMD_DIR = src/commands
